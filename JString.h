@@ -43,7 +43,10 @@ static void KmpNext(const char* p,int* next);
 
 static int* __str_kmp_search(char* texts,int textslen,const char* signals,int siglen,int* matches);
 
+//获取数字的绝对值
 static int __str_abs(int nums);
+//获取数字的位数
+static int __str_getdigits(int nums);
 
 static void __str_addEndMark(char* cptr,int index);
 
@@ -82,6 +85,10 @@ static JStr __str_cat(JStr jc,int jclen,const void* t,int len);
 static JStr __str_reset(JStr jc,const char* t);
 static JStr __str_insert(JStr jc,const char* insertJc,int startIndex);
 static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int* resultlen);
+
+//数字方面函数
+static int __str_tointlen(const void* jc,int size);
+static JStr __str_tostr(int nums);
 
 //public methods
 
@@ -135,4 +142,12 @@ JStr* jstr_slits(const JStr texts,const char** signal_arr,int signal_arr_len,int
 void jstr_free(JStr jc);
 void jstr_frees(JStr* jarrs,int jarrslen);
 
+/*--字符转数字--*/
+int jstr_toint(const JStr jc);
+int jstr_tointlen(const char* jc,int size);
+JStr jstr_tostr(int nums);
+int jstr_isnum(const JStr jc);
+int jstr_isnumlen(const char* jc,int len);
+/*---测试方法---*/
+void jstr_test();
 #endif

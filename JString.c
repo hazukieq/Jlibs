@@ -1,4 +1,5 @@
 #include "JString.h"
+#include <stdlib.h>
 /**---内部宏---*/
 //输出红色警告信息
 //int转char
@@ -114,6 +115,17 @@ clear:
 static int __str_abs(int nums){
         if(nums<0) return ~nums+1;
         return nums;
+}
+//数字位数
+static int __str_getdigits(int nums){
+        int digits=0;
+        if(nums==0) return 1;
+        while(nums){
+                nums=nums/10;
+                digits++;
+        }
+
+        return digits;
 }
 
 //注意字符串内存会自动分配额外的一个字节来储存\0标识
@@ -777,6 +789,85 @@ cleanup:
 }
 
 
+JStr __str_tostr(int num){
+        int digits=__str_getdigits(num); 
+        JStr jc=jstr_newlen("",digits);
+        if(jc==NULL) return "0";
+        int i=0;
+        if(num<0){
+                num=-num;
+                jc[i]='-';
+                i++;
+        }
+
+        do{
+                //取num最低位
+                //字符0-9的ASCII码是48-57
+                //所以需要加上48;
+                jc[i++]=num%10+48;
+                num/=10;//去掉最低位
+        }while(num);
+
+        jc[i]='\0';
+        int j=0;
+        if(jc[0]=='-'){
+                j=1;
+                ++i;
+        }
+
+        //对称交换
+        for(;j<i/2;j++){
+                char tmp=jc[j];
+                jc[j]=jc[i-j-1];
+                jc[i-j-1]=tmp;
+        }
+
+        return jc;
+}
+
+int __str_tointlen(const void* jc,int size){
+        JStr chars=jstr_newlen(jc,size);
+
+        if(chars==NULL) return 0;
+        if(chars[0]=='\0') return 0;
+        
+        while(*chars==' '){
+                chars++;
+        }
+
+        int flag=1;
+        if(*chars=='-'||*chars=='+'){
+                flag=*chars=='-'?-1:1;
+                chars++;
+        }
+
+#define INT_MAX 2147483648
+#define INT_MIN -2147483648
+        long long ret=0;
+        while(*chars>='0'&&*chars<='9'){
+                //从左到右的转换数字
+                //*10的作用是使ret整个数字的位数向左移一位，如50,50*10=>500,位数由2变为3
+                ret=ret*10+(*chars-'0')*flag;
+                if(ret<INT_MIN||ret>INT_MAX) return 0;
+                chars++;
+        }
+        
+        char last=*chars;
+        
+        //释放申请到的内存空间;
+        int count=size+1;
+        while(--count>0)
+                chars--;
+        jstr_free(chars);
+
+        if(last=='\0') {
+                return (int)ret;
+        }
+
+        return (int)ret;
+}
+
+
 /*----public methods-----*/
 JStr jstr_newlen(const void* str,int len){
         JString* jstr=NULL;
@@ -817,6 +908,20 @@ JStr jstr_autofit(JStr jc){
         return jc;
 }
 
+void jstr_expandLen(JStr jc,int newlen){
+        if(jc==NULL) return;
+        assertJc(jc,);
+
+        if(jptr(jc)->len>newlen){
+                int oldlen=jptr(jc)->len;
+                jptr(jc)->len=newlen;
+                jptr(jc)->free=oldlen-newlen;
+                return;
+        }
+
+        jc=__str_overwriteMakeMem(jc,newlen);
+}
+
 int jstr_len(const JStr jc){
         if(jc==NULL){
                 logc("jc<%s> is null",jc);
@@ -826,6 +931,42 @@ int jstr_len(const JStr jc){
         return jptr(jc)->len;
 }
 
+int jstr_tointlen(const char* jc,int size){
+        if(jc==NULL) return 0;
+        return __str_tointlen(jc,size);
+}
+int jstr_toint(const JStr jc){
+        if(jc==NULL) return 0;
+        assertJc(jc,0);
+        return __str_tointlen(jc,jptr(jc)->len);
+}
+
+JStr jstr_tostr(int nums){
+        return __str_tostr(nums);
+}
+
+int jstr_isnum(const JStr jc){
+        if(jc==NULL) return 0;
+        assertJc(jc,0);
+
+        int check=0;
+        int len=jptr(jc)->len;
+        if(len==1&&(jc[0]>='0'&&jc[0]<='9')) check=1; 
+        while(len--){
+                if(jc[len]>='0'&&jc[len]<='9') check=1;
+        }
+        return check;
+}
+
+int jstr_isnumlen(const char* jc,int len){
+        if(jc==NULL) return 0;
+        int check=0;
+        if(len==1&&(jc[0]>='0'&&jc[0]<='9')) check=1; 
+        while(len--){
+                if(jc[len]>='0'&&jc[len]<='9') check=1;
+        }
+        return check;
+}
 
 JStr jstr_copy(const JStr jc){
         if(jc==NULL) {
@@ -1164,7 +1305,7 @@ void jstr_frees(JStr* jrrs,int len){
 }
 
 //测试范例
-void jstrtest(){
+void jstr_test(){
         //--jstr_split&&jstr_replace--/
         FILE* f=fopen("/home/hazukie/cprojects/exercise_c/long.txt","r");
         char line[1024];
@@ -1216,6 +1357,19 @@ void jstrtest(){
         char* c=jstr_replace(distr,"**","Audacity");
         logi(c,s,"");
         //---jstr_displace--/
+        
+        //---jstr_toint---/
+        JStr jci=jstr_new("12345678");
+        int isa=jstr_toint(jci);
+        logi(isa,d,"");
+
+        int iza=jstr_tointlen("12345678",sizeof(char)*8);
+        logi(iza,d,"");
+
+        int sin=987654321;
+        if(jstr_isnum(jci)==1) logc("jci<%s> is a number.",jci);
+        logi(jstr_tostr(sin),s,"");
+        //---jstr_toint---/
 }
 
 

@@ -56,13 +56,23 @@ int jstack_len(JStack* jst){
         return jst->len;
 }
 
+int jstack_isnone(JStack* jst){
+        if(jst==NULL||jst->len==0) return 1;
+        else return 1;
+}
+
+void* jstack_top(JStack* jst){
+        if(jst==NULL||jst->len==0) return NULL;
+        return jst->top->data;
+}
 
 void* jstack_pop(JStack* jst){
-        if(jst==NULL) return NULL;
+        if(jst==NULL||jst->len==0) return NULL;
 
         JNode* current=jst->top;
-        JNode* next=current->next;
+        if(current==NULL) return NULL;
 
+        JNode* next=current->next;
         void* data=current->data;
         free(current);
         jst->top=next;
@@ -93,7 +103,7 @@ void jstack_putnode(JStack* jst,JNode* node){
 }
 
 void jstack_reverse(JStack* jst){
-        if(jst==NULL) return;
+        if(jst==NULL||jst->len==0) return;
 
         JNode* current=jst->top;
         JNode* next=NULL;
@@ -116,6 +126,7 @@ void jstack_reverse(JStack* jst){
         jst->top=nhead;
 }
 
+
 void jstack_test(){
         JStack* jst=jstack_init();
 
@@ -125,6 +136,8 @@ void jstack_test(){
         }
 
         jstack_reverse(jst);
+        
+        printf("jstack_top->%d\n",*((int*)jstack_top(jst)));
         while(jst->len>0)
                 printf("_rever=> %d\n",*((int*)jstack_pop(jst)));
         
