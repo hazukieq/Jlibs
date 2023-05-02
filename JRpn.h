@@ -2,11 +2,24 @@
 #define __JRPN_H__
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "JStack.h"
 #include "JString.h"
-char getOp_Priority(char c1,char c2);
-int isOp(char c1);
+#include "JList.h"
 
-JStr operates(char* jc1,char op,char* jc2);
-JStr evaluateExprs(JStr exprs);
+static char getOp_Priority(char c1,char c2);
+static int isOp(char c1);
+
+static JStr operate(const char* jc1,char op,const char* jc2);
+static int int_sqrt(int m,int n);
+
+static JStr operateflt(const char* jc1,char op,const char* jc2);
+static double flt_sqrt(double m,double n);
+
+static List* splitExprs(const JStr exprs);
+static JStr calcExprs(const JStr exprs,int type);
+
+JStr calcFlt(const JStr exprs);
+JStr calcInt(const JStr exprs);
+void jrpn_test();
 #endif

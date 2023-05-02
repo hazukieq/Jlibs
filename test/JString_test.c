@@ -19,6 +19,9 @@ int main(void){
 
         jstr_free(js);
         jstr_free(js1);
+
+        jstr_test();
+
         return 0;
 }
 
