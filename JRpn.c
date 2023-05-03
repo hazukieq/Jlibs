@@ -319,12 +319,12 @@ error:
 }
 
 
-JStr calcInt(const JStr jc){
+JStr jrpn_calcInt(const JStr jc){
         if(jc==NULL) return NULL;
         return calcExprs(jc,0);
 }
 
-JStr calcFlt(const JStr jc){
+JStr jrpn_calcFlt(const JStr jc){
         if(jc==NULL) return NULL;
         return calcExprs(jc,1);
 }
@@ -334,8 +334,8 @@ void jrpn_test(){
         char* s="((23/7*(7-3+15)))*(67-22)*71";
         JStr expression=jstr_new(s);
         
-        char* res_int=calcInt(jstr_new("(1/3)^3+1/2*15+(200-103)%13"));
-        char* res_flt=calcFlt(expression);
+        char* res_int=jrpn_calcInt(jstr_new("(1/3)^3+1/2*15+(200-103)%13"));
+        char* res_flt=jrpn_calcFlt(expression);
         printf("\n\nfinal_result of %s: %s\n",s,res_flt);
         printf("\nfinal_result of (1/3)^3+1/2*15+(200-103)mod 13: %s\n\n",res_int);
 
