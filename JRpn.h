@@ -19,7 +19,7 @@ static double flt_sqrt(double m,double n);
 static List* splitExprs(const JStr exprs);
 static JStr calcExprs(const JStr exprs,int type);
 
-JStr calcFlt(const JStr exprs);
-JStr calcInt(const JStr exprs);
+JStr jrpn_calcFlt(const JStr exprs);
+JStr jrpn_calcInt(const JStr exprs);
 void jrpn_test();
 #endif
