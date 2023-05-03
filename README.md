@@ -4,12 +4,6 @@
 ### 模块
 - JList 列表
 - JStack 栈
+- JQueue 队列
 - JRpn 栈之表达式计算应用
 - JString 字符串
-
----
-#### jList 待实现方法
-```c
-list_merge(List* list1,List* list2);
-list_reverse(List* list);
-```
