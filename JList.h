@@ -91,4 +91,6 @@ void list_is_empty(const List* list);
 
 int list_indexof(const List* list,Node* node);
 
+void list_reverse(List* list);
+void list_merge(List* list,List* l);
 #endif

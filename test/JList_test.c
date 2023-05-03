@@ -23,7 +23,8 @@ void executeFn(void* obj){
 int main(void){
         
         List* l=list_init(LSTRUCT);
-        
+        List* nel=list_init(LSTRUCT);
+
         struct Lk lk={
                 .name="hazukie",
                 .gender="male",
@@ -43,7 +44,8 @@ int main(void){
 
         for(int j=0;j<3;j++)
                 list_add(l,&lk,sizeof(lk));
-
+        for(int j=0;j<10;j++)
+                list_add(nel,&lk,sizeof(lk));
 
         printf("------ LinkedList test -------\n");
         printf("remove item before len: %d\n",l->len);
@@ -85,6 +87,18 @@ int main(void){
         printf("list len:%d\n",l->len);
 
         printf("\n");
+       
+        list_merge(l,nel);
+        list_reverse(l);
+
+        printf("list_merge: len<%d>\n",l->len);
+        list_for(l,ncur){
+                struct Lk* lq=(struct Lk*)ncur->obj;    
+                printf("Lk{ name: %s,gender: %s,age:%d,numbers: %s,telenum:%s }\n",
+                                    lq->name,lq->gender,lq->age,lq->numbers,lq->telenum);
+
+        }
+
         //释放内存
         list_empty(l);
 

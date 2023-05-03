@@ -75,7 +75,7 @@ static int isOp(char c1){
         return check;
 }
 
-int int_sqrt(int m,int n){
+static int int_sqrt(int m,int n){
         /*int result=1;
         while(n!=1){
                 if(n&1==1) result*=m;
@@ -90,7 +90,7 @@ int int_sqrt(int m,int n){
         return result;
 }
 
-JStr operate(const char* jc1,char op,const char* jc2){
+static JStr operate(const char* jc1,char op,const char* jc2){
         int result=0;
         int ijc1=jstr_tointlen(jc1,strlen(jc1));
         int ijc2=jstr_tointlen(jc2,strlen(jc2));

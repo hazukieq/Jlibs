@@ -500,3 +500,40 @@ int list_indexof(const List *list, Node *node){
 
         return index;
 }
+
+
+void list_reverse(List* list){
+        if(list==NULL||list->len==0) return;
+
+        Node* nhead=NULL;
+        Node* ncur=NULL;
+
+        Node* next=NULL;
+        Node* cur=list->next;
+        while(cur){
+                next=cur->next;
+
+                //假设nhead是头节点,且不为NULL
+                //ncur是新添节点
+                ncur=cur;
+                ncur->next=nhead;
+                nhead=ncur;
+
+                cur=next;
+        }
+
+        //将原来的头节点替换掉
+        list->next=nhead;
+}
+
+//只是将列表的最后一个指向了新列表的头节点
+//并不是真正的复制合并
+void list_merge(List *list, List *l){
+        if(list==NULL||l==NULL||list->type!=l->type) return;
+        
+        Node* last=list->next;
+        while(last->next!=NULL)
+                last=last->next;
+        last->next=l->next;
+        list->len+=l->len;
+}
