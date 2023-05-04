@@ -20,6 +20,8 @@
  */
 #define jstr_replace(texts,new_jc,...) jstr_replaces(texts,__regexs(__VA_ARGS__),new_jc)
 
+#define jstr_merge(...) jstr_merges(__regexs(__VA_ARGS__))
+
 struct __str{
         //判断是否属于字符串
         char isJstr[1];
@@ -82,6 +84,7 @@ static Boolean __str_ends(const JStr jc,int jclen,const char* signals,int offset
 static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old_jcs_len,const char* new_jc);
 static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const char* new_jc);
 static JStr __str_cat(JStr jc,int jclen,const void* t,int len);
+static JStr __str_merge(const char** carrs,int len);
 static JStr __str_reset(JStr jc,const char* t);
 static JStr __str_insert(JStr jc,const char* insertJc,int startIndex);
 static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int* resultlen);
@@ -136,9 +139,14 @@ JStr jstr_displaces(JStr origin,const char* old_jc,const char* new_jc);
 JStr jstr_replaces(JStr origin,const char** old_jcs,int old_jcs_len,const char* new_jc);
 
 JStr jstr_insert(JStr jc,const char* insertJc,int startIndex);
+
 JStr jstr_cat(JStr jc1,const char* jc2);
+JStr jstr_merges(const char** carrs,int len);
+
+
 JStr* jstr_split(const JStr texts,const char* signals,int* resultlen);
 JStr* jstr_slits(const JStr texts,const char** signal_arr,int signal_arr_len,int* resultlen);
+
 void jstr_free(JStr jc);
 void jstr_frees(JStr* jarrs,int jarrslen);
 
@@ -148,6 +156,7 @@ int jstr_tointlen(const char* jc,int size);
 JStr jstr_tostr(int nums);
 int jstr_isnum(const JStr jc);
 int jstr_isnumlen(const char* jc,int len);
+
 /*---测试方法---*/
 void jstr_test();
 #endif

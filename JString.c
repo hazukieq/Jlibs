@@ -582,6 +582,7 @@ static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const ch
 
 static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old_jcs_len,const char* new_jc){
         int newlen=strlen(new_jc);
+        
         JStr copy_origin=jstr_newlen(origin,originlen);
         for(int i=0;i<old_jcs_len;i++){
                 //kmp算法匹配字符，并返回字符匹配数组和数组长度
@@ -596,11 +597,10 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                 
                 //循环替换匹配
                 //每次只在字符串中替换一个匹配字符
-                //匹配完后更新字符串内容，并返回初始循环中用kmp匹配，而后进入内部循环进行替换处理
-                //如此反复，直至匹配完成
-                JStr tmps=jstr_newempty();
+                //匹配完后更新字符串内容，并返回初始循环中用kmp匹配，而后进入内部循环进行替换处理,如此反复，直至匹配完成
                 int lastEnd=0;
                 //因为kmp匹配数组的排序是有序的，即匹配下标从小到大排列(从字符段头部至尾部)
+                JStr tmps=jstr_newempty();
                 for(int i=0;i<hitCounts;i++){
                         //命中字符前段
                         JStr prev=__ansi_subs(copy_origin,jptr(copy_origin)->len,lastEnd,hits[i]);
@@ -620,7 +620,7 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                         last_sni=NULL;
                 }
                 
-                copy_origin=jstr_copy(tmps);
+                copy_origin=jstr_newlen(tmps,jptr(tmps)->len);
                 jstr_free(tmps);
                 tmps=NULL;
                 hitCounts=0;
@@ -630,8 +630,7 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
 
         if(copy_origin!=NULL){
                 jstr_free(origin);
-                origin=NULL;
-                origin=jstr_copy(copy_origin);
+                origin=jstr_newlen(copy_origin,jptr(copy_origin)->len);
                 jstr_free(copy_origin);
                 copy_origin=NULL;
         }
@@ -639,6 +638,7 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
 
 cleanup:
         loge("error...hitCoutns or hits[] is NULL,so return origin.");
+        if(copy_origin!=NULL) jstr_free(copy_origin);
         return origin;
 }
 
@@ -660,6 +660,13 @@ static JStr __str_cat(JStr old_jc,int old_len,const void* t,int len){
         return old_jc;
 }
 
+JStr __str_merge(const char **carrs, int len){
+        JStr target=jstr_newempty();
+        for(int i=0;i<len;i++){
+                target=__str_cat(target,jptr(target)->len,carrs[i],strlen(carrs[i]));
+        }
+        return target;
+}
 
 //会改变原有字符！！
 static JStr __str_reset(JStr jc, const char *t){
@@ -1234,8 +1241,7 @@ JStr jstr_replaces(JStr origin, const char** old_jcs,int old_jcs_len,const char*
                 return NULL;
         }
         assertJc(origin,NULL); 
-        origin=__str_replace(origin,jptr(origin)->len,old_jcs,old_jcs_len,new_jc);
-        return origin;
+        return __str_replace(origin,jptr(origin)->len,old_jcs,old_jcs_len,new_jc);
 }
 
 JStr jstr_insert(JStr jc,const char* insertJc,int startIndex){
@@ -1258,6 +1264,15 @@ JStr jstr_cat(JStr jc1,const char* jc2){
         assertJc(jc1,NULL);
         jc1=__str_cat(jc1,jptr(jc1)->len,jc2,strlen(jc2));
         return jc1;
+}
+
+//推荐使用宏函数jstr_merge
+JStr jstr_merges(const char **carrs, int len){
+        if(carrs==NULL||len==0) {
+                loge("carrs is null or len is 0,please check it out again.");
+                return NULL;
+        }
+        return __str_merge(carrs,len);
 }
 
 JStr* jstr_splits(const JStr texts,const char* signals,int* resultlen){
@@ -1288,11 +1303,18 @@ JStr* jstr_slits(const JStr texts,const char** signal_arr,int signal_arr_len,int
         return tmp;
 }
 
+void jstr_clear(JStr jc){
+        if(jc==NULL) return;
+        assertJc(jc,);
+        jptr(jc)->len=0;
+        jptr(jc)->buf[0]='\0';
+}
 void jstr_free(JStr jc){
         if(jc==NULL) return;
         assertJc(jc,)
         
         JString *jstr=jptr(jc);
+        jstr->buf[0]='\0';
         free(jstr);
         jstr=NULL;
 }
@@ -1317,7 +1339,7 @@ void jstr_test(){
         }
         fclose(f);
 
-        longexts=jstr_replace(longexts,"<br>","\n");
+        longexts=jstr_replace(longexts,"の","的");
         logi(longexts,s,"");
         //---jstr_replace--/
 
@@ -1338,7 +1360,6 @@ void jstr_test(){
         for(int i=0;i<longlens;i++)
                printf("==> \033[0;36m%s\n\033[0m",jss[i]);
         jstr_frees(jss,longlens);
-        jstr_free(longexts);
         //---jstr_splits--/
 
 
@@ -1350,13 +1371,14 @@ void jstr_test(){
 
 
         //---jstr_displace--/
-        char* distr=jstr_new("吾系客家人，好食客家菜！客家人系真勤劳个人呐！Installation packages for Audacity are provided by many GNU/Linux and Unix-like distributions. Use the distribution’s usual package manager (where available) to install Audacity. If necessary, you could try searching for an appropriate Audacity package on rpmseek.");
+        JStr distr=jstr_new("吾系客家人，好食客家菜！客家人系真勤劳个人呐！Installation packages for Audacity are provided by many GNU/Linux and Unix-like distributions. Use the distribution’s usual package manager (where available) to install Audacity. If necessary, you could try searching for an appropriate Audacity package on rpmseek.");
         
         logi(jstr_contains(distr,"Audacity"),d,"");
 
         char* c=jstr_replace(distr,"**","Audacity");
         logi(c,s,"");
         //---jstr_displace--/
+        
         
         //---jstr_toint---/
         JStr jci=jstr_new("12345678");
@@ -1370,6 +1392,14 @@ void jstr_test(){
         if(jstr_isnum(jci)==1) logc("jci<%s> is a number.",jci);
         logi(jstr_tostr(sin),s,"");
         //---jstr_toint---/
+        
+        //---jstr_merp---/
+        JStr _s=jstr_merge("\njstr_merge:\n\nhello,world","!","And jci=<",jci,">","\ndistr:",c,"\nlongexts：\n",longexts);
+        logi(_s,s,"");
+
+        jstr_clear(c);
+        jstr_free(_s);
+        jstr_free(longexts);
 }
 
 
