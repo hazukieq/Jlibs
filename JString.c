@@ -1,5 +1,7 @@
 #include "JString.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 /**---内部宏---*/
 //输出红色警告信息
 //int转char
@@ -795,8 +797,145 @@ cleanup:
         return NULL;
 }
 
+//判断数字二进制在计算机中的存储顺序是大端还是小端
+static int __str_checkEndianfmt(){
+        int n=1;
+        char* p=(char*)&n;
+        if(*p==1) return 1;
+        else return 0;
+}
 
-JStr __str_tostr(int num){
+static unsigned char* __str_bin2intarrs(char* chars){
+        unsigned char* bytes=malloc(sizeof(unsigned char)*4);
+        if(bytes==NULL) return NULL;
+        for(int i=0;i<4;i++){
+                unsigned char s=0b00000000;
+                for(int j=0;j<8;j++){
+                        unsigned char _s=chars[i*8+j]=='1'?0b10000000:0b000000000;
+                        s^=(_s>>j);
+                }
+                bytes[i]=s;
+        }
+        
+        if(__str_checkEndianfmt()==1){
+            for(int i=0;i<2;i++){
+                char tmp=bytes[i];
+                bytes[i]=bytes[4-i-1];
+                bytes[4-i-1]=tmp;
+            }
+        }
+
+        return bytes;
+}
+
+//默认int长度为4个字节
+static int __str_bin2int(char* chars){
+        unsigned char* bytes;
+        bytes=__str_bin2intarrs(chars);
+        int inum;
+        memcpy(&inum,bytes,sizeof(int));
+        return inum;
+}
+
+
+static JStr __str_int2hex(int n){
+        char bin[8];
+        
+        //正负数标识符
+        int sign=n>=0?0:1;
+ 
+        char positive_hexs[16]="0123456789abcdef";
+        //因为负数存储形式是补码，而二进制补码转化为十六制刚好是十六进制的反序排列
+        char negative_hexs[16]="fedcba9876543210";
+        
+       
+        char* hexs;
+        hexs=sign==1?negative_hexs:positive_hexs;
+        
+        if(sign) n=-n;
+        int i=0;
+        while(n){
+                bin[i]=hexs[n%16];
+                int jk=i;
+                n=n/16;
+                i++;
+        }
+        //为什么要+1呢？因为负数存储的形式是补码，即正数的二进制取反得反码，反码+1=补码
+        if(sign) bin[0]=hexs[1];
+        //补足剩余位 
+        while(i<7) bin[i++]='0';
+
+        //添加字符组结束标识 
+        bin[i]='\0';
+        //因为十六进制转化是从右到左的，所以需要逆序调整为正确顺序
+        for(int j=0;j<i/2;j++){
+                char tmp=bin[j];
+                bin[j]=bin[i-j-1];
+                bin[i-j-1]=tmp;
+        }
+        
+        if(__str_checkEndianfmt()){       
+                for(int i=0;i<3;i+=2){
+                        unsigned char tmp=bin[i];
+                        bin[i]=bin[7-i-1];
+                        bin[7-i-1]=tmp;
+
+                        tmp=bin[i+1];
+                        bin[i+1]=bin[7-i];
+                        bin[7-i]=tmp;
+
+                }
+        }
+        return jstr_new(bin);
+}
+
+// 把整数转化为二进制字符
+static JStr __str_int2bin(int n) {
+    char bin[32];
+    int i = 0;
+    int sign = n >= 0 ? 0 : 1; // 符号位
+    if (sign) n = -n; // 取绝对值
+    while (n > 0) {
+        bin[i++] = n % 2 + '0'; // 除2取余法
+        n /= 2;
+    }
+    while (i < 31) {
+        bin[i++] = '0'; // 补齐剩余位
+    }
+    bin[i++] = sign + '0'; // 加上符号位
+    bin[i] = '\0';// 字符串结束标志
+    // 反转字符串
+    for (int j = 0; j < i / 2; j++) {
+        char temp = bin[j];
+        bin[j] = bin[i - j - 1];
+        bin[i - j - 1] = temp;
+    }
+    return jstr_new(bin);
+}
+
+// 把浮点数转化为二进制字符串
+/*void float_to_bin(float f, char *bin) {
+    int i = 0;
+    int sign = f >= 0 ? 0 : 1; // 符号位
+    if (sign) f = -f; // 取绝对值
+    int e = floor(log2(f)); // 指数部分，向下取整
+    float m = f / pow(2, e) - 1; // 尾数部分，减去隐含的1
+    e += 127; // 指数部分加上偏移量127
+    bin[i++] = sign + '0'; // 加上符号位
+    // 把指数部分转化为二进制字符串，共8位
+    for (int j = 7; j >= 0; j--) {
+        bin[i++] = (e >> j) & 1 ? '1' : '0';
+    }
+    // 把尾数部分转化为二进制字符串，共23位
+    for (int j = 0; j < 23; j++) {
+        m *= 2;
+        bin[i++] = m >= 1 ? '1' : '0';
+        if (m >= 1) m -= 1;
+    }
+    bin[i] = '\0'; // 字符串结束标志
+}*/
+
+static JStr __str_tostr(int num){
         int digits=__str_getdigits(num); 
         JStr jc=jstr_newlen("",digits);
         if(jc==NULL) return "0";
@@ -832,7 +971,7 @@ JStr __str_tostr(int num){
         return jc;
 }
 
-int __str_tointlen(const void* jc,int size){
+static int __str_tointlen(const void* jc,int size){
         JStr chars=jstr_newlen(jc,size);
 
         if(chars==NULL) return 0;
@@ -1326,6 +1465,52 @@ void jstr_frees(JStr* jrrs,int len){
         free(jrrs);
 }
 
+JStr jstr_int2bin(int number){
+        return __str_int2bin(number);
+}
+
+int jstr_bin2int(char* chars){
+        if(chars==NULL) return 0;
+        return __str_bin2int(chars);
+}
+
+JStr jstr_bin2intarrs(char* chars){
+        if(chars==NULL) return NULL;
+        return (char*)__str_bin2intarrs(chars);
+}
+
+JStr jstr_int2hex(int n){
+        return __str_int2hex(n);
+}
+
+JStr jstr_slicadd(JStr jc,int n,char* addTag){
+        if(jc==NULL||addTag==NULL) return NULL;
+        assertJc(jc, NULL);
+
+        JStr tag=jstr_new(addTag);
+        JStr tmp=jstr_newempty();
+        JStr prev;
+
+        int lastEnd=0;
+        for(int i=0;i<jptr(jc)->len;i++){
+                if(i%n==0){
+                        prev=jstr_subsAnsi(jc,lastEnd,i);
+                        tmp=jstr_cat(tmp,prev);
+                        tmp=jstr_cat(tmp,tag);
+                        lastEnd=i;
+                }
+        }
+
+        if(lastEnd<jptr(jc)->len){
+                prev=jstr_subsAnsi(jc,lastEnd,-1);
+                tmp=jstr_cat(tmp,prev);
+        }
+
+        jstr_free(prev);
+        jstr_free(tag);
+        return tmp;
+}
+
 //测试范例
 void jstr_test(){
         //--jstr_split&&jstr_replace--/
@@ -1393,13 +1578,79 @@ void jstr_test(){
         logi(jstr_tostr(sin),s,"");
         //---jstr_toint---/
         
-        //---jstr_merp---/
+        //---jstr_merge---/
         JStr _s=jstr_merge("\njstr_merge:\n\nhello,world","!","And jci=<",jci,">","\ndistr:",c,"\nlongexts：\n",longexts);
         logi(_s,s,"");
 
         jstr_clear(c);
         jstr_free(_s);
         jstr_free(longexts);
+
+        struct Lk{
+                char* name;
+                char numbers[12];
+                char* gender;
+                char   telenum[12];
+                int age;
+        };
+
+        struct Lk lk={
+                .name="hazukie",
+                .gender="male",
+                .numbers="99999999999",
+                .telenum="11111222220",
+                .age=19
+        };
+        struct Lk* lptr=&lk;
+        char* ptet=jstr_merge("\n",lptr->name,"\n",lptr->gender,"\n",lptr->numbers,"\n",lptr->telenum);
+        logi(ptet,s,"");
+        jstr_free(ptet);
+        //---jstr_merge--/
+        
+        //---jstr_int2bin&jstr_bin2int--/ 
+        //for(int i=0;i<4;i++) tmps[i]=ibinarys[4-i];
+        //big endian: 0x499602d2
+        //little endian: 0xd2029649
+        
+        //big: 0b01001001 10010110 00000010 11010010
+        //sma: 0b11010010 00000010 10010110 01001001
+        JStr ibinarys=jstr_int2bin(1234567890);
+        int inum=jstr_bin2int(ibinarys);
+        logc("i=%d,i_binary_fmt=0b%s",inum,ibinarys);
+        //---jstr_int2bin&jstr_bin2int--/
+        
+        //---str2struct---/
+        struct Lkp{
+                int id;
+                int score;
+                char name[10];
+        };
+        char* spj=malloc(sizeof(struct Lkp));//"hello,world\x00\x2e\xfd\x69\xb6\x01\x00\x00\x00";
+        memset(spj,'0',sizeof(struct Lkp));
+        int qe=-1234567890;
+        char we[4];
+        memcpy(we,&qe,4);
+
+        for(int i=0;i<4;i++) spj[i]=we[i];
+        spj[4]='\x01';
+        spj[5]='\x00';
+        spj[6]='\x00';
+        spj[7]='\x00';
+        
+        char jell[]="hello,world";
+        for(int i=8;i<20;i++) spj[i]=jell[i-8];
+        spj[20]='\x00';
+
+        logi(sizeof(struct Lkp),ld,"");
+        struct Lkp lkp;
+        memcpy(&lkp,spj,sizeof(struct Lkp));
+        struct Lkp* lkptr=(struct Lkp*)&lkp;
+        logc("name->%s,id->%d,score->%d",lkptr->name,lkptr->id,lkptr->score);
+        
+        JStr jhex=jstr_int2hex(-1234567890);
+        JStr jhexp=jstr_slicadd(jhex,2,"\\x");
+        logc("jhexp=%s\n",jhexp);
+        logi(jhex,s,"");
 }
 
 

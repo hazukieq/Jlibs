@@ -22,6 +22,9 @@
 
 #define jstr_merge(...) jstr_merges(__regexs(__VA_ARGS__))
 
+#define jstr_str2struct(strs,members...){\
+}
+
 struct __str{
         //判断是否属于字符串
         char isJstr[1];
@@ -90,6 +93,10 @@ static JStr __str_insert(JStr jc,const char* insertJc,int startIndex);
 static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int* resultlen);
 
 //数字方面函数
+static int __str_checkEndianfmt();
+static JStr __str_int2bin(int n);
+static int __str_bin2int(char* chars);
+
 static int __str_tointlen(const void* jc,int size);
 static JStr __str_tostr(int nums);
 
@@ -144,7 +151,7 @@ JStr jstr_cat(JStr jc1,const char* jc2);
 JStr jstr_merges(const char** carrs,int len);
 
 
-JStr* jstr_split(const JStr texts,const char* signals,int* resultlen);
+JStr* jstr_splits(const JStr texts,const char* signals,int* resultlen);
 JStr* jstr_slits(const JStr texts,const char** signal_arr,int signal_arr_len,int* resultlen);
 
 void jstr_free(JStr jc);
@@ -156,6 +163,16 @@ int jstr_tointlen(const char* jc,int size);
 JStr jstr_tostr(int nums);
 int jstr_isnum(const JStr jc);
 int jstr_isnumlen(const char* jc,int len);
+
+/**--数字转二进制--*/
+JStr jstr_int2bin(int number);
+JStr ijstr_bin2intarrs(char* number_chars);
+int jstr_bin2int(char* number_chars);
+JStr jstr_slicadd(JStr jc,int n,char* addTag);
+
+/**---数字转十六进制--*/
+static JStr __str_int2hex(int n);
+JStr jstr_int2hex(int n);
 
 /*---测试方法---*/
 void jstr_test();
