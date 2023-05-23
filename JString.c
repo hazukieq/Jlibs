@@ -855,25 +855,28 @@ static JStr __str_int2hex(int n){
         if(sign) n=-n;
         int i=0;
         while(n){
-                bin[i]=hexs[n%16];
+                bin[i]=*(hexs+(n%16));
                 int jk=i;
                 n=n/16;
                 i++;
         }
         //为什么要+1呢？因为负数存储的形式是补码，即正数的二进制取反得反码，反码+1=补码
-        if(sign) bin[0]=hexs[1];
+        if(sign) bin[0]=*(hexs+1);
         //补足剩余位 
-        while(i<7) bin[i++]='0';
+        while(i<8) bin[i++]='0';
 
         //添加字符组结束标识 
         bin[i]='\0';
         //因为十六进制转化是从右到左的，所以需要逆序调整为正确顺序
-        for(int j=0;j<i/2;j++){
-                char tmp=bin[j];
-                bin[j]=bin[i-j-1];
+        for(int ij=0;ij<8;ij++) logi((unsigned char)bin[ij],c,"");
+
+	for(int j=0;j<i/2;j++){
+                unsigned char tmp=bin[j];
+		bin[j]=bin[i-j-1];
                 bin[i-j-1]=tmp;
         }
-        
+	logi(bin,s,"");
+
         if(__str_checkEndianfmt()){       
                 for(int i=0;i<3;i+=2){
                         unsigned char tmp=bin[i];
@@ -883,10 +886,11 @@ static JStr __str_int2hex(int n){
                         tmp=bin[i+1];
                         bin[i+1]=bin[7-i];
                         bin[7-i]=tmp;
-
                 }
         }
-        return jstr_new(bin);
+        
+	
+	return jstr_new(bin);
 }
 
 // 把整数转化为二进制字符
@@ -1647,7 +1651,7 @@ void jstr_test(){
         struct Lkp* lkptr=(struct Lkp*)&lkp;
         logc("name->%s,id->%d,score->%d",lkptr->name,lkptr->id,lkptr->score);
         
-        JStr jhex=jstr_int2hex(-1234567890);
+        JStr jhex=jstr_int2hex(110);
         JStr jhexp=jstr_slicadd(jhex,2,"\\x");
         logc("jhexp=%s\n",jhexp);
         logi(jhex,s,"");
