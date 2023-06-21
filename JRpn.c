@@ -269,7 +269,7 @@ static char* calcExprs(const JStr jcs,int type){
                                         b=(char*)jstack_pop(OPND);
                                         a=(char*)jstack_pop(OPND);
 
-                                        if(a!=NULL&&a!=NULL&&x!=NULL){
+                                        if(a!=NULL&&b!=NULL&&x!=NULL){
                                                 JStr operated_result=type==0?operate(a,x[0],b):operateflt(a,x[0],b); 
                                                 printf("operated_exprs: %s%s%s=%s\n",a,x,b,operated_result);
                                                 jstack_push(OPND,operated_result,jstr_len(operated_result)+1);
