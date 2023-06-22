@@ -284,7 +284,6 @@ static void __addUtfobj(List* list,const JStr c,int clen,int index,int bits){
                         ne=NULL;
 }
 
-
 static List* __utf_getUtfobjs(JStr jc,int jclen){
         /* cnt   所有字节的总长度
          * cnt+1 一位数字节,cnt+2 两位数字节,cnt+3 三位数字节
@@ -801,22 +800,25 @@ cleanup:
 static int __str_checkEndianfmt(){
         int n=1;
         char* p=(char*)&n;
-        if(*p==1) return 1;
-        else return 0;
+	//if(*p==1) return 1;
+	//else return 0;
+	return (*p==1)?1:0;
 }
 
+//将二进制字符转为数字字符
+//"0b0000 0010"->"1"
 static unsigned char* __str_bin2intarrs(char* chars){
         unsigned char* bytes=malloc(sizeof(unsigned char)*4);
         if(bytes==NULL) return NULL;
-        for(int i=0;i<4;i++){
+        
+	for(int i=0;i<4;i++){
                 unsigned char s=0b00000000;
                 for(int j=0;j<8;j++){
                         unsigned char _s=chars[i*8+j]=='1'?0b10000000:0b000000000;
                         s^=(_s>>j);
                 }
                 bytes[i]=s;
-        }
-        
+        } 
         if(__str_checkEndianfmt()==1){
             for(int i=0;i<2;i++){
                 char tmp=bytes[i];
@@ -824,7 +826,6 @@ static unsigned char* __str_bin2intarrs(char* chars){
                 bytes[4-i-1]=tmp;
             }
         }
-
         return bytes;
 }
 
@@ -848,7 +849,6 @@ static JStr __str_int2hex(int n){
         //因为负数存储形式是补码，而二进制补码转化为十六制刚好是十六进制的反序排列
         char negative_hexs[16]="fedcba9876543210";
         
-       
         char* hexs;
         hexs=sign==1?negative_hexs:positive_hexs;
         
@@ -1517,9 +1517,14 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag){
 
 //测试范例
 void jstr_test(){
-        //--jstr_split&&jstr_replace--/
-        FILE* f=fopen("/home/hazukie/cprojects/exercise_c/long.txt","r");
-        char line[1024];
+        //--jstr_replace--/
+	char* file_path="long.txt";
+        FILE* f=fopen(file_path,"r");
+        if(f==NULL){
+		logc("the file<%s> is not found,so failed.",file_path);
+		return;
+	}
+	char line[1024];
         JStr longexts=jstr_newempty();
         
         int record=0;
@@ -1612,7 +1617,6 @@ void jstr_test(){
         //---jstr_merge--/
         
         //---jstr_int2bin&jstr_bin2int--/ 
-        //for(int i=0;i<4;i++) tmps[i]=ibinarys[4-i];
         //big endian: 0x499602d2
         //little endian: 0xd2029649
         
@@ -1656,5 +1660,4 @@ void jstr_test(){
         logc("jhexp=%s\n",jhexp);
         logi(jhex,s,"");
 }
-
 
