@@ -166,7 +166,7 @@ int jstr_isnumlen(const char* jc,int len);
 
 /**--数字转二进制--*/
 JStr jstr_int2bin(int number);
-JStr ijstr_bin2intarrs(char* number_chars);
+JStr jstr_bin2intarrs(char* number_chars);
 int jstr_bin2int(char* number_chars);
 JStr jstr_slicadd(JStr jc,int n,char* addTag);
 
