@@ -158,15 +158,15 @@ void jstr_free(JStr jc);
 void jstr_frees(JStr* jarrs,int jarrslen);
 
 /*--字符转数字--*/
-int jstr_toint(const JStr jc);
-int jstr_tointlen(const char* jc,int size);
-JStr jstr_tostr(int nums);
+int jstr_str2num(const JStr jc);
+int jstr_str2numlen(const char* jc,int size);
+JStr jstr_num2str(int nums);
 int jstr_isnum(const JStr jc);
 int jstr_isnumlen(const char* jc,int len);
 
 /**--数字转二进制--*/
 JStr jstr_int2bin(int number);
-JStr jstr_bin2intarrs(char* number_chars);
+JStr jstr_binarrs2int(char* number_chars);
 int jstr_bin2int(char* number_chars);
 JStr jstr_slicadd(JStr jc,int n,char* addTag);
 
@@ -174,6 +174,9 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag);
 static JStr __str_int2hex(int n);
 JStr jstr_int2hex(int n);
 
+/**---字符串转二进制---*/
+static JStr __str_str2bin(const char* jc,int ispad,char pad_tag);
+JStr jstr_str2bin(const char* jc,int ispad,char pad_tag);
 /*---测试方法---*/
 void jstr_test();
 #endif

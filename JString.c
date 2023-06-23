@@ -831,9 +831,9 @@ static int __str_checkEndianfmt(){
 	return (*p==1)?1:0;
 }
 
-//将二进制字符转为数字字符
+//将二进制字符串转为数字字符串
 //"0b0000 0010"->"1"
-static unsigned char* __str_bin2intarrs(char* chars){
+static unsigned char* __str_binarrs2int(char* chars){
         unsigned char* bytes=malloc(sizeof(unsigned char)*4);
         if(bytes==NULL) return NULL;
         
@@ -855,16 +855,17 @@ static unsigned char* __str_bin2intarrs(char* chars){
         return bytes;
 }
 
+//二进制字符串转数字
 //默认int长度为4个字节
 static int __str_bin2int(char* chars){
         unsigned char* bytes;
-        bytes=__str_bin2intarrs(chars);
+        bytes=__str_binarrs2int(chars);
         int inum;
         memcpy(&inum,bytes,sizeof(int));
         return inum;
 }
 
-
+//数字转十六进制字符串
 static JStr __str_int2hex(int n){
         char bin[8];
         
@@ -919,7 +920,8 @@ static JStr __str_int2hex(int n){
 	return jstr_new(bin);
 }
 
-// 把整数转化为二进制字符
+
+// 把整数转化为二进制字符串
 static JStr __str_int2bin(int n) {
     char bin[32];
     int i = 0;
@@ -965,6 +967,7 @@ static JStr __str_int2bin(int n) {
     bin[i] = '\0'; // 字符串结束标志
 }*/
 
+//数字转数字字符串
 static JStr __str_tostr(int num){
         int digits=__str_getdigits(num); 
         JStr jc=jstr_newlen("",digits);
@@ -1001,6 +1004,7 @@ static JStr __str_tostr(int num){
         return jc;
 }
 
+//数字转数字字符串
 static int __str_tointlen(const void* jc,int size){
         JStr chars=jstr_newlen(jc,size);
 
@@ -1041,6 +1045,38 @@ static int __str_tointlen(const void* jc,int size){
         }
 
         return (int)ret;
+}
+
+/**
+ * 字符串转二进制
+ * ispad 是否每8位二进制间隔一个空格
+ * pad_tag 是否需要自定义间隔符号，要求间隔符一个字节
+ */
+char* __str_str2bin(const char* jc,int ispad,char pad_tag){
+	int len=ispad==1?strlen(jc)*8+strlen(jc)-1:strlen(jc)*8;
+	char tag=strlen(&pad_tag)==1?pad_tag:' ';
+	//这里+1是给字符终止符留的空位
+	char* bits=(char*)malloc(len+1);
+	if(bits==NULL) return NULL;
+	
+	int j=0;
+	while(*jc!='\0'){
+		//通过从高位到低位在字节中右移n位得到单个比特,
+		//将其与0000 0001进行按位与运算(& operation)得到布尔值
+		//然后依据布尔值将相应数字填入字符数组中
+		for(int i=7;i>=0;i--){
+			//将单个字符转化为无符号字符
+			unsigned char tmp=(unsigned char)*jc;
+			char binary=((tmp>>i)&1)==1?'1':'0';
+			bits[j++]=binary;
+		}
+		if(ispad==1) bits[j++]=tag;
+		jc++;
+	}
+	if(ispad==1) bits[j-1]=' ';
+	bits[j]='\0';
+	printf("\033[0;32m%s\033[0m的二进制：\n%s\n\n",jc-11,bits);
+	return bits;
 }
 
 
@@ -1106,21 +1142,22 @@ int jstr_len(const JStr jc){
         assertJc(jc,0)
         return jptr(jc)->len;
 }
-
-int jstr_tointlen(const char* jc,int size){
+//数字字符串转数字
+int jstr_str2numlen(const char* jc,int size){
         if(jc==NULL) return 0;
         return __str_tointlen(jc,size);
 }
-int jstr_toint(const JStr jc){
+//数字字符串转数字
+int jstr_str2num(const JStr jc){
         if(jc==NULL) return 0;
         assertJc(jc,0);
         return __str_tointlen(jc,jptr(jc)->len);
 }
-
-JStr jstr_tostr(int nums){
+//数字转数字字符串
+JStr jstr_num2str(int nums){
         return __str_tostr(nums);
 }
-
+//检测是否是数字字符串
 int jstr_isnum(const JStr jc){
         if(jc==NULL) return 0;
         assertJc(jc,0);
@@ -1133,7 +1170,7 @@ int jstr_isnum(const JStr jc){
         }
         return check;
 }
-
+//检测是否数字字符串
 int jstr_isnumlen(const char* jc,int len){
         if(jc==NULL) return 0;
         int check=0;
@@ -1494,25 +1531,26 @@ void jstr_frees(JStr* jrrs,int len){
                 jstr_free(jrrs[len]);
         free(jrrs);
 }
-
+//数字转二进制字符串
 JStr jstr_int2bin(int number){
         return __str_int2bin(number);
 }
 
+//二进制字符串转数字
 int jstr_bin2int(char* chars){
         if(chars==NULL) return 0;
         return __str_bin2int(chars);
 }
-
-JStr jstr_bin2intarrs(char* chars){
+//二进制字符串转数字字符串
+JStr jstr_binarrs2int(char* chars){
         if(chars==NULL) return NULL;
-        return (char*)__str_bin2intarrs(chars);
+        return (char*)__str_binarrs2int(chars);
 }
-
+//数字转十六进制字符串
 JStr jstr_int2hex(int n){
         return __str_int2hex(n);
 }
-
+//在n的倍数上的字符处添加标记符
 JStr jstr_slicadd(JStr jc,int n,char* addTag){
         if(jc==NULL||addTag==NULL) return NULL;
         assertJc(jc, NULL);
@@ -1539,6 +1577,17 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag){
         jstr_free(prev);
         jstr_free(tag);
         return tmp;
+}
+
+/**
+ * 字符串转二进制
+ * ispad 是否每8位二进制间隔一个空格
+ * pad_tag 是否需要自定义间隔符号，要求间隔符一个字节
+ */
+JStr jstr_str2bin(const char *jc, int ispad, char pad_tag){
+	if(jc==NULL) return NULL;
+	if(ispad>1) ispad=1;
+	return __str_str2bin(jc,ispad,pad_tag);
 }
 
 //测试范例
@@ -1602,15 +1651,15 @@ void jstr_test(){
         
         //---jstr_toint---/
         JStr jci=jstr_new("12345678");
-        int isa=jstr_toint(jci);
+        int isa=jstr_str2num(jci);
         logi(isa,d,"");
 
-        int iza=jstr_tointlen("12345678",sizeof(char)*8);
+        int iza=jstr_str2numlen("12345678",sizeof(char)*8);
         logi(iza,d,"");
 
         int sin=987654321;
         if(jstr_isnum(jci)==1) logc("jci<%s> is a number.",jci);
-        logi(jstr_tostr(sin),s,"");
+        logi(jstr_num2str(sin),s,"");
         //---jstr_toint---/
         
         //---jstr_merge---/
