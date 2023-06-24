@@ -1067,7 +1067,7 @@ char* __str_str2bin(const char* jc,int ispad,char pad_tag){
 		for(int i=7;i>=0;i--){
 			//将单个字符转化为无符号字符
 			unsigned char tmp=(unsigned char)*jc;
-			char binary=((tmp>>i)&1)==1?'1':'0';
+			char binary=((tmp>>i)&1)?'1':'0';
 			bits[j++]=binary;
 		}
 		if(ispad==1) bits[j++]=tag;
@@ -1075,7 +1075,7 @@ char* __str_str2bin(const char* jc,int ispad,char pad_tag){
 	}
 	if(ispad==1) bits[j-1]=' ';
 	bits[j]='\0';
-	printf("\033[0;32m%s\033[0m的二进制：\n%s\n\n",jc-11,bits);
+	printf("\033[0;32m%s\033[0m的二进制：\n%s\n\n",jc-len,bits);
 	return bits;
 }
 

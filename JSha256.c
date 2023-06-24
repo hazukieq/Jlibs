@@ -6,6 +6,8 @@
  * 日期：2023年6月24日夜
  */
 #include <malloc.h>
+#include <stdio.h>
+#include <string.h>
 #include "JSha256.h"
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -47,7 +49,7 @@ static const uint32_t k[64] = {
 };
 
 
-void sha256(const unsigned char *data, size_t len, unsigned char *out) {
+static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
 	uint32_t h0 = 0x6a09e667;
         uint32_t h1 = 0xbb67ae85;
         uint32_t h2 = 0x3c6ef372;
@@ -77,7 +79,8 @@ void sha256(const unsigned char *data, size_t len, unsigned char *out) {
 	//按照惯例,原字符内容后需要添加以1开头的比特
         buf[len] = (unsigned char)0x80;//0x80->0b1000 0000
         
-	//添加len*8个bit的8字节字符串,其是原字符的长度信息
+	//len是字节数,故需乘以8=>实际总比特数
+	//添加64-bit的8字节字符串,其是原字符的长度信息
         uint64_t bits_len = len * 8;
 	//通过循环将64-bit(8字节)的长度信息按每8-bit添加到buf中
         for (int i = 0; i < 8; i++) {
@@ -94,8 +97,9 @@ void sha256(const unsigned char *data, size_t len, unsigned char *out) {
         size_t chunk_len = new_len / 64; 
         for (int idx = 0; idx < chunk_len; idx++) {
 	    uint32_t val = 0;	
-	    //将一个区块分解为16个32-bitのbig-endianの字,记为w[0], …, w[15]
+	    //将一个区块分解为16个32-bitのbig-endianの字,记为w[0],...,w[15]
 	    for(int i=0;i<16;i++){
+		    //这里加上idex*64,是因为每64字节分成一个chunk(区块)
 		    unsigned char* block=buf+(4*i+idx*64);
 		    val=SPLIT_32H(block);
 		    w[i]=val;
@@ -163,41 +167,140 @@ void sha256(const unsigned char *data, size_t len, unsigned char *out) {
     	copy_uint32(out + 7, h7);
 }
 
-char* jsha_gethex(const unsigned char* hash){
-	char* hashes=malloc(65);
-	if(hashes==NULL) return NULL;
+void jsha_hash(const char* data,size_t len, unsigned char** outptr_ptr){
+	if(data==NULL) {
+		printf("data cannot be NULL\n");
+		return;
+	}
+
+	*outptr_ptr=(unsigned char*)malloc(32);
+	if(*outptr_ptr==NULL){
+		printf("you must pass a non-NULL pointer address to jsha_hash\n");	
+		return;
+	}
+
+	sha256((const unsigned char*)data,len,*outptr_ptr);
+	if(!*outptr_ptr) {
+		printf("cannot copy hash value to outptr_ptr");
+		return;
+	}
+}
+
+void jsha_getobj(const char *data, size_t len, shacontext **contextptr_ptr){
+	if(data==NULL) {
+		printf("data cannot be NULL\n");
+		return;
+	}
+	*contextptr_ptr=(shacontext*)malloc(sizeof(shacontext)+sizeof(char)*(len+1));
+	if(*contextptr_ptr==NULL){
+		printf("you must pass a non-NULL pointer address to jsha_hash\n");	
+		return;
+	}
+	
+	unsigned char* out_data;
+	jsha_hash(data,len,&out_data);
+	memcpy((*contextptr_ptr)->hash,out_data,32);
+
+	char* bindata;
+	jsha_getbin(out_data,NULL,&bindata);
+	memcpy((*contextptr_ptr)->bin,bindata,257);
+
+	char* hexdata;
+	jsha_gethex(out_data,NULL,&hexdata);
+	memcpy((*contextptr_ptr)->hex,hexdata,65);
+
+	memcpy((*contextptr_ptr)->raw,data,len);
+	(*contextptr_ptr)->raw[65]='\0';
+}
+
+void jsha_printobj(shacontext *context){
+	if(context==NULL) return;
+	printf("\033[0;32m\n{\n\"bin\": \"%s\",\n\"hex\": \"%s\",\n\"raw\": \"%s\"\n}\n\n\033[0m",context->bin,context->hex,context->raw);
+}
+
+void jsha_getbin(const unsigned char *hash,char* split_tag,char **binptr_ptr){
+	int istag_mode=0;
+	char tag=' ';
+	if(split_tag!=NULL) {
+		tag=split_tag[0];
+		istag_mode=1;
+	}
+	int size=istag_mode?32*8+8+1:32*8+1;
+	*binptr_ptr=(char*)malloc(size);
+	if(*binptr_ptr==NULL) return;
 
 	for(int i=0;i<32;i++){
-		char s[3];
-		sprintf(s,"%02x",hash[i]);
-		memcpy(hashes+i*2,s,2);
+		for(int j=0;j<8;j++){
+			(*binptr_ptr)[i*8+j]=(hash[i]>>(7-j)&1)?'1':'0';
+		}
+		
+		if(i>0&&istag_mode)
+			(*binptr_ptr)[i*8]=tag;
+		
 	}
-	return hashes;
+	(*binptr_ptr)[size-1]='\0';
+}
+
+
+void jsha_gethex(const unsigned char* hash,char* split_tag,char** hexptr_ptr){
+	int istag_mode=0;
+	char tag=' ';
+	if(split_tag!=NULL){
+		istag_mode=1;
+		tag=split_tag[0];
+	}
+
+	//因为hashptr_ptr指向char*指针地址,所以*hashptr_ptr实际上是一个char数组指针
+	//即 hashptr_ptr存储了一个主函数中char* hashes的指针地址,这样就可以对其进行操作了
+	//故可以对一个char数组指针分配内存
+	int size=istag_mode?65+31:65;
+	*hexptr_ptr=(char*)malloc(size);
+	if(hexptr_ptr==NULL) return;
+	for(int i=0;i<32;i++){
+		if(istag_mode){
+			char s[4];
+			sprintf(s,"%02x%c", hash[i],tag);
+			memcpy((*hexptr_ptr)+i*3,s,3);
+		}
+		else{ 
+			char s[3];
+			sprintf(s,"%02x",hash[i]);
+			memcpy((*hexptr_ptr)+i*2,s,2);
+		}
+	}
 }
 
 /**
+ * fmt_mode: heximal mode 0,binary mode 1:w 
  * split_tag: any
- * fmt_mode: heximal mode 0,binary mode 1
  */
-void jsha_print(const unsigned char* out,int fmt_mode,int is_tagmode,char split_tag){
+void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag){
 	if(out==NULL) return;
 	if(fmt_mode>1) fmt_mode=1;
-	if(is_tagmode>1) is_tagmode=1;
+	char tag=' ';
+	int istag_mode=0;
+	if(split_tag!=NULL) {
+		tag=split_tag[0];
+		istag_mode=1;
+	}
 
 	switch(fmt_mode){
 		case 0:
+			printf("\033[0;32m\t");
 			for(int i=0;i<32;i++){
 				for(int j=0;j<8;j++)
-					printf("%c",(out[i]>>(8-j)&255)==1?'1':'0');
-				if(i<31&&is_tagmode==1) printf("%c",split_tag);
+					printf("%c",(out[i]>>(7-j)&1)==1?'1':'0');
+				if(i<31&&istag_mode) printf("%c",tag);
 			}
-			printf("\n");
+			printf("\n\033[0m");
 			break;
 		case 1:
+			printf("\033[0;32m\t");
 			for(int i=0;i<32;i++){
 				printf("%02x",out[i]);
-				if(i<31&&is_tagmode) printf("%c",split_tag);
+				if(i<31&&istag_mode) printf("%c",tag);
 			}
+			printf("\n\033[0m");
 			break;
 
 		default:
@@ -206,12 +309,28 @@ void jsha_print(const unsigned char* out,int fmt_mode,int is_tagmode,char split_
 }
 
 int main(void){
-	const unsigned char h[]="hello";
-	unsigned char out[32];
-	sha256(h,strlen((const char*)h), out);
-	printf("%s\n",jsha_gethex(out));
-	jsha_print(out,1,0,' ');
+	const char h[]="hello";
+	unsigned char* out;
+	jsha_hash(h,strlen(h), &out);
+	
+	
+	char* hashes=NULL;
+	char tagh=' ';
+	jsha_gethex(out,&tagh,&hashes);
+	if(hashes) printf("hash_hexfmt: %s\n",hashes);
+	
+	char tag='.';
+	jsha_print(out,1,&tag);
 
+
+	shacontext* context;
+	jsha_getobj(h,strlen(h),&context);
+	jsha_printobj(context);
+	
+	char* bins;
+	char bint=' ';
+	jsha_getbin(out,&bint,&bins);
+	printf("hash_binfmt: %s\n",bins);
 	return 0;
 }
 
