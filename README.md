@@ -7,3 +7,5 @@
 - JQueue 队列
 - JRpn 栈之表达式计算应用
 - JString 字符串
+- JSha256 加密算法
+- JDict 哈希字典
