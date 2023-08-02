@@ -31,4 +31,7 @@ void jsha_gethex(const unsigned char* hash,char* split_tag,char** hexptr_ptr);
 
 //打印
 void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag);
+
+//测试函数
+void jsha_test();
 #endif

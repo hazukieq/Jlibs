@@ -74,5 +74,7 @@ void jdict_clear(JDict** dict);
 //释放哈希表内存
 void jdict_release(JDict** dict);
 
+//测试函数
+void jdict_test();
 #endif
 

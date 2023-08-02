@@ -265,7 +265,7 @@ void jdict_release(JDict** dict){
 }
 
 
-int main(void){
+void jdict_test(){
 	JDict* dict=jdict_init();
 	jdict_set(&dict,"hello","2593753494");
 	jdict_set(&dict,"hello","world");
@@ -315,6 +315,13 @@ int main(void){
 	jdict_set(&dict,"world","hahahha,this is another new hash_dict dayo~");
 	jdict_print(dict);
 	jdict_release(&dict);
-	return 0;
+
 }
+
+/*
+ *int main(void){
+ 	jdict_test();
+	return 0;
+ }
+ */
 

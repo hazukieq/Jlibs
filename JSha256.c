@@ -341,7 +341,7 @@ void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag){
 	}
 }
 
-/*int main(void){
+void jsha_test(){
 	const char h[]="hello";
 	unsigned char* out;
 	jsha_hash(h,strlen(h), &out);
@@ -366,6 +366,12 @@ void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag){
 	char bint=' ';
 	jsha_getbin(out,&bint,&bins);
 	printf("hash_binfmt: %s\n",bins);
+}
+
+/*
+ *int main(void){
+	jsha_test();
 	return 0;
-}*/
+ }
+ */
 
