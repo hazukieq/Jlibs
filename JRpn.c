@@ -92,8 +92,8 @@ static int int_sqrt(int m,int n){
 
 static JStr operate(const char* jc1,char op,const char* jc2){
         int result=0;
-        int ijc1=jstr_tointlen(jc1,strlen(jc1));
-        int ijc2=jstr_tointlen(jc2,strlen(jc2));
+        int ijc1=jstr_str2numlen(jc1,strlen(jc1));
+        int ijc2=jstr_str2numlen(jc2,strlen(jc2));
         switch(op){
                 case '+':
                         result = ijc1+ijc2;
@@ -114,7 +114,7 @@ static JStr operate(const char* jc1,char op,const char* jc2){
                         result=int_sqrt(ijc1,ijc2);
                         break;
         }
-        return jstr_tostr(result);
+        return jstr_num2str(result);
 }
 
 

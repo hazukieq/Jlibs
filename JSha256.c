@@ -48,7 +48,19 @@ static const uint32_t k[64] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-
+/**
+ * 加密流程:
+ * 1. 消息预处理
+ * - 将原始信息转化为二进制编码
+ * - 在其后面补个'1'(0b1000 0000)
+ * - 补充 N 个0，使得其总长度取模得448,
+ *   (l+1+k) mod 512 = 448，l:原始消息长度,k:填充0长度
+ * 2. 附加原始消息的长度值
+ * 3. 消息拆分为 N 个 512-bit的区(block)
+ * - 对于每个区，构造64个字(根据其消息构造出16个字,剩下48个根据前16个字和迭代公式得到)
+ * - 完成64次加密迭代
+ * 4.得到256比特的加密数据 
+ */
 static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
 	uint32_t h0 = 0x6a09e667;
         uint32_t h1 = 0xbb67ae85;
@@ -60,15 +72,17 @@ static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
         uint32_t h7 = 0x5be0cd19;
     
 	//公式 y mod 512=x...r
-        //故补齐余数为 r>448-> y+=+448+512-r or y+=448-r
+        //需要补齐余数为448
+	//即使长度已经满足对512取模后余数是448，补位也必须要进行，这时要填充512个比特。因此，填充是至少补一位，最多补512位
+	//故 r>448 => y=448+512-r or y=448-r
 	int r=(int)((len*8)%512);
         int append_bits=(r < 448) ? 448 - r : 448 + 512 - r;
         int append = append_bits / 8;
         size_t new_len = len + append + 8;// 原始数据+填充+64bit位数(64/8=>8)
         
         unsigned char buf[new_len];
-        //将内存（字符串）前n个字节清零<string.h>
-	//按照SHA256算法流程,需要在添加以1开头的比特后面补齐足够的0000 0000以被512取模得余数418
+        //将内存（字符串）前n个字节清零
+	//按照SHA256算法流程,需要在添加以1开头的比特后面补齐足够的0000 0000以被512取模得余数448
 	//由于之前已经计算出新长度new_len (原字符长度+补齐0的长度+长度信息8)
 	//故可以直接将扩容后的内存以0x0进行格式化
 	bzero(buf + len, append); 
@@ -89,28 +103,37 @@ static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
     	    buf[len + append + i] = (bits_len >> ((7 - i) * 8)) & 0xff;
         }
 	
-        
-        uint32_t w[64];//即64个32bit(4字节)大小
-        bzero(w, 64);
-        //按512bit(512/8=>64)分割区块
+        //存储区块加密用到的64个字,即64个32bit(4字节)大小
+	uint32_t w[64];
+	bzero(w, 64);//格式化
+
+        //按512bit(512/8=>64 字节)分割区块
         //注意new_len是字节数,不是bits总长度！！
         size_t chunk_len = new_len / 64; 
-        for (int idx = 0; idx < chunk_len; idx++) {
-	    uint32_t val = 0;	
+        
+	//对每个区块进行以下加密迭代
+	for (int idx = 0; idx < chunk_len; idx++) {
+	    uint32_t val = 0;
+	    //构造64个32-bit字
+	    //前16个字由消息的第i个区块得到
+	    //剩下48个字由迭代公式得到
+	    
 	    //将一个区块分解为16个32-bitのbig-endianの字,记为w[0],...,w[15]
 	    for(int i=0;i<16;i++){
-		    //这里加上idex*64,是因为每64字节分成一个chunk(区块)
+		    //idex*64 表明当前是哪个区块(每64字节分成一个区块)
+		    //i*4 表明一个字需要根据区块32 bits 来构造
 		    unsigned char* block=buf+(4*i+idx*64);
 		    val=SPLIT_32H(block);
 		    w[i]=val;
 		    val=0;
 	    }
-	    //前16个字直接由以上消息的第i个块分解得到
+	    
 	    //其余的字由如下迭代公式得到
 	    for (int i = 16; i < 64; i++) {            
 		    w[i]=Gamma1(w[i-2])+w[i-7]+Gamma0(w[i-15])+w[i-16];
 	    }
 
+	    //进行64次加密循环
             uint32_t a = h0;
             uint32_t b = h1;
             uint32_t c = h2;
@@ -157,6 +180,8 @@ static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
             h6 += g;
             h7 += h;
     }
+	//得到8位32-bit加密信息
+	//8*32=256 bits
 	copy_uint32(out, h0);
     	copy_uint32(out + 1, h1);
     	copy_uint32(out + 2, h2);
@@ -217,6 +242,14 @@ void jsha_printobj(shacontext *context){
 	if(context==NULL) return;
 	printf("\033[0;32m\n{\n\"bin\": \"%s\",\n\"hex\": \"%s\",\n\"raw\": \"%s\"\n}\n\n\033[0m",context->bin,context->hex,context->raw);
 }
+
+char* jsha_getjson(shacontext *context){
+	if(context==NULL) return NULL;
+	char* json;
+	sprintf(json,"{\n\t\"hex\":\"%s\",\n\t\"raw\":\"%s\"\n}",context->hex,context->raw);
+	return json;
+}
+
 
 void jsha_getbin(const unsigned char *hash,char* split_tag,char **binptr_ptr){
 	int istag_mode=0;
@@ -308,11 +341,12 @@ void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag){
 	}
 }
 
-int main(void){
+/*int main(void){
 	const char h[]="hello";
 	unsigned char* out;
 	jsha_hash(h,strlen(h), &out);
-	
+	unsigned int index = *((unsigned int*)out);
+	printf("hash_index:%d\n",index%100);
 	
 	char* hashes=NULL;
 	char tagh=' ';
@@ -326,11 +360,12 @@ int main(void){
 	shacontext* context;
 	jsha_getobj(h,strlen(h),&context);
 	jsha_printobj(context);
+	printf("\033[0;32m%s\n\033[0m",jsha_getjson(context));
 	
 	char* bins;
 	char bint=' ';
 	jsha_getbin(out,&bint,&bins);
 	printf("hash_binfmt: %s\n",bins);
 	return 0;
-}
+}*/
 
