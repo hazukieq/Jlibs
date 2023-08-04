@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "JList.h"
 #include <memory.h>
-
+#include <stdlib.h>
 
 //循环链表方法实现
 static void forEach(const List* list,void (*executeFn)(void*)){
@@ -17,56 +17,41 @@ static void forEach(const List* list,void (*executeFn)(void*)){
 
 /**
  * size 对于数组而言，其size必须是类型大小*数组长度
+ * depracted
  */
-static void* applyMem(enum ListType type,int size){
+static void* applyMem(int size,char ltype){
         void* voidmem=NULL;
-        switch(type){
-                case LINT:
-                        voidmem=(int*) malloc(size);
-                        break;
-                case LSHORT:
-                        voidmem=(short*) malloc(size);
-                        break;
-                case LFLOAT:
-                        voidmem=(float*) malloc(size);
-                        break;
-                case LLONG:
-                        voidmem=(long*) malloc(size);
-                        break;
-                case LCHAR:
-                        voidmem=(char*)malloc(size+1);
-                        break;
-                case LSTRUCT:
-                        voidmem=malloc(size);
-                        break;
-               default:
-                        voidmem=(int*)malloc(size);
-        }
-
+	switch(ltype){
+		case 'i':
+			voidmem=malloc(sizeof(int)*size);
+			break;
+		case 's':
+			voidmem=malloc(sizeof(short)*size);
+			break;
+		case 'f':
+			voidmem=malloc(sizeof(float)*size);
+			break;
+		case 'l':
+			voidmem=malloc(sizeof(long)*size);
+			break;
+		case 'c':
+			voidmem=malloc(sizeof(char)*(size+1));
+			break;
+		case 't':
+		default:
+			voidmem=malloc(size);
+	}
 
         if(voidmem==NULL){
                 printf("failed to malloc memory for void object.\n");
                 return NULL;
         }
-
         return voidmem;
 }
 
-static void* __voidmemcpy(void* v1,void* v2,int size){
-        void* ret=v1;
-
-        char* cv1=(char*)v1;
-        char* cv2=(char*)v2;
-
-        for(int i=0;i<size;i++){
-                cv1[i]=cv2[i];
-        }
-
-        return ret;
-}
 
 
-List* list_init(enum ListType type){
+List* list_init(char ltype){
         //创建头节点
         List* list=(List*) malloc(sizeof(List));
         if(list==NULL){
@@ -76,35 +61,14 @@ List* list_init(enum ListType type){
 
         list->len=0;
         list->next=NULL;
-        list->type=type;
+	list->type=ltype;
         return list; 
 }
 
 
-static Node* createNode(enum ListType obj_type,int obj_size,void* obj){
-        //泛型void指针需要分配空间内存
-        void* new_void=NULL;
-
-        //为new_void申请一块连续的内存
-        new_void=applyMem(obj_type,obj_size);
-        
-        //检查内存是否分配成功
-        if(new_void==NULL){
-                printf("failed to malloc memory for creating new void object.\n");
-                return NULL;
-        }
-
-        //给新void的内存赋值
-        //obj内存拷贝=>new_void
-        //可能有失败风险
-        void* mem_status=memmove(new_void,obj,obj_size);
-        if(mem_status==NULL){
-                printf("memcpy: failed to copy object to new_object.\n");
-                return NULL;
-        }
-
+static Node* createNode(void* obj,int obj_size,char obj_type){
         //创造一个新节点
-        Node* new_node=(Node*) malloc(sizeof(Node));
+        Node* new_node=malloc(sizeof(Node));
         //检查内存分配是否成功
         if(new_node==NULL){
                 printf("failed to malloc memory for creating new node.\n");
@@ -112,18 +76,31 @@ static Node* createNode(enum ListType obj_type,int obj_size,void* obj){
         }
 
         //节点初始化
-        new_node->obj=new_void;
-        new_node->next=NULL;
+        if(obj==NULL){
+		goto break_c;
+	}
+        void* new_obj=applyMem(obj_size,obj_type);
+	if(new_obj==NULL){
+		goto break_c;
+	}
+	
+	memcpy(new_obj,obj,obj_size);
+	new_node->obj=new_obj;
+	new_node->next=NULL;
         new_node->size=obj_size;
-
         return new_node;
+
+break_c:
+	free(new_node);
+	return NULL;
 }
 
 
 void list_add(List* list,void* obj,int obj_size){
         if(list==NULL||obj==NULL) return;
-       //生成一个新节点
-        Node* new_node=createNode(list->type,obj_size,obj);
+        
+	//生成一个新节点
+        Node* new_node=createNode(obj,obj_size,list->type);
         //检查新节点生成是否成功
         if(new_node==NULL) return;
 
@@ -172,7 +149,7 @@ void list_insert(List* list,void* obj,int obj_size,int pos){
         }
 
         //新节点
-        Node* new_node=createNode(list->type,obj_size,obj);
+        Node* new_node=createNode(obj,obj_size,list->type);
         if(new_node==NULL) return;
 
         //当前节点
@@ -225,7 +202,7 @@ void list_set(List* list,void* obj,int obj_size,int pos){
 
         Node* current=list->next;
         if(pos==0){
-                void* neo_obj=applyMem(list->type,obj_size);
+                void* neo_obj=applyMem(obj_size,list->type);
                 if(neo_obj==NULL){
                         printf("failed to malloc memory for object in list_set().\n");
                         return;
@@ -245,7 +222,7 @@ void list_set(List* list,void* obj,int obj_size,int pos){
                 current=current->next;
         }
 
-        void* neo_obj=applyMem(list->type,obj_size);
+        void* neo_obj=applyMem(obj_size,list->type);
         if(neo_obj==NULL){
                 printf("failed to malloc memory for object in list_set().\n");
                 return;
@@ -288,12 +265,37 @@ void* list_get(const List* list,int pos){
         return current->obj;
 }
 
+int list_getInt(void* obj){
+	if(obj==NULL) return 0;
+	return *(int*)obj;
+}
+
+float list_getFloat(void* obj){
+	if(obj==NULL) return 0;
+	return *(float*)obj;
+}
+
+short list_getShort(void* obj){
+	if(obj==NULL) return 0;
+	return *(short*)obj;
+}
+
+long list_getLong(void* obj){
+	if(obj==NULL) return 0;
+	return *(long*)obj;
+}
+
+char* list_getChars(void* obj){
+	if(obj==NULL) return NULL;
+	return (char*)obj;
+}
 
 void* list_getlast(const List *list){
         if(list==NULL) return NULL;
         if(list->len==0) return  NULL;
         return list_get(list,list->len-1);
 }
+
 
 void list_rmObj(List* list,void* obj){
         if(list==NULL||obj==NULL) return;
@@ -407,27 +409,29 @@ void list_empty(List* list){
         
         if(list->len==0 
            && list->next==NULL){
-                printf("info: list length is 0, so there is nothing to release!\n");
+                printf("list_empty_info: list length is 0, so there is nothing to empty!\n");
                 list->len=0;
                 list->next=NULL;
                 return;
         }
 
         Node* current=list->next;
-        Node* next=NULL;
 
         while(current!=NULL){
-                next=current->next;
+                Node* next=current->next;
                 if(next==NULL) break;
                 
-                void* tmp=current->obj;
-                if(tmp==NULL)break;
-                free(tmp);
+                free(current->obj);
                 free(current);
                 current=next;
         }
-
-        list->len=0;
+	//防止最后一个节点没有释放内存
+	if(current) {
+		if(current->obj) free(current->obj);
+		free(current);
+	}
+        
+	list->len=0;
         list->next=NULL;
 }
 
@@ -436,7 +440,6 @@ void list_release(List* list){
     list_empty(list);
     free(list);
     list=NULL;
-    //printf("List released successfully\n");
 }
 
 
@@ -528,12 +531,38 @@ void list_reverse(List* list){
 
 //只是将列表的最后一个指向了新列表的头节点
 //并不是真正的复制合并
-void list_merge(List *list, List *l){
-        if(list==NULL||l==NULL||list->type!=l->type) return;
-        
-        Node* last=list->next;
-        while(last->next!=NULL)
+//但两个列表内存都应该释放，请用 if(...) free(...)
+//list1合并给list
+void list_merge(List* list1,List* list){
+        if(list1==NULL||list==NULL||list1->type!=list->type) return; 
+        //找到list表最后一个节点
+	Node* last=list->next;
+        while(last->next)
                 last=last->next;
-        last->next=l->next;
-        list->len+=l->len;
+        if(last){
+		printf("merge list successfully...\n");
+		last=list1->next;
+		list->len+=list1->len;
+	}
 }
+
+void list_test(){
+	//PASS
+	List* list=list_init(LCHAR);
+	list_add(list,"hello",5);
+	list_set(list,"hello,world",12,0);
+	printf("lastItem:%s\n",(char*)list_getlast(list));
+	
+	list_rmObj(list,"hello");
+	list_for(list,node){
+		char* val=list_getChars(node->obj);
+		printf("%s\n",list_getChars(node->obj));
+	}
+	list_release(list);
+}
+
+
+/*int main(void){
+	list_test();
+	return 0;
+}*/

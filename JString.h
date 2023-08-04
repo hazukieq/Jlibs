@@ -142,12 +142,18 @@ int jstr_lastIndexOf(const JStr origin,const char* signals);
 int jstr_contains(const JStr origin,const char* signals);
 
 /*--高难度函数--*/
+//原路返回jc参数,所以你只能赋值给jc
 JStr jstr_displaces(JStr origin,const char* old_jc,const char* new_jc);
+
+//原路返回jc参数,所以你只能赋值给jc
 JStr jstr_replaces(JStr origin,const char** old_jcs,int old_jcs_len,const char* new_jc);
 
+//原路返回jc参数,所以你只能赋值给jc
 JStr jstr_insert(JStr jc,const char* insertJc,int startIndex);
 
+//原路返回jc参数,所以你只能赋值给jc1
 JStr jstr_cat(JStr jc1,const char* jc2);
+
 JStr jstr_merges(const char** carrs,int len);
 
 

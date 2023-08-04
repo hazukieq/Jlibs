@@ -9,30 +9,36 @@
        for(Node* item=list->next;item;item=item->next)\
             if(item->obj!=NULL) executeFn(item->obj);
 
-//请注意 obj 是一个节点，不是实际数据！
-#define list_for(list,obj) \
-        Node* obj=NULL;\
-        for(obj=list->next;obj;obj=obj->next)
+//请注意 node 是一个节点，不是实际数据！
+#define list_for(list,node) \
+        for(Node* node=list->next;node;node=node->next)
 
 #define List2(list) \
         for(Node* it=list->next;it;it=it->next)
 
-enum ListType{
-        LINT,
-        LFLOAT,
-        LSHORT,
-        LLONG,
-        LCHAR,
-        LSTRUCT,
-};
+#define LINT 'i'
+#define LFLOAT 'f'
+#define LSHORT 's'
+#define LLONG 'l'
+#define LCHAR 'c'
+#define LSTRUCT 't'
+
+/*union T_VALS{
+	int i;
+	float f;
+	short e;
+	long l;
+	char* c;
+	void* t;
+};*/
 
 
 //链表普通节点
 typedef struct ListNode{
-        struct ListNode* next;
         //每个元素占用的空间大小不一
         int size;
-        void* obj;
+        struct ListNode* next;
+	void* obj;
 } Node;
 
 
@@ -40,8 +46,8 @@ typedef struct ListNode{
 //链表头节点
 //存储链表关键信息
 typedef struct ListHead{
+        char type;//请使用LType中任意值
         int len;
-        enum ListType type;
         Node* next;
 } List;
 
@@ -52,7 +58,7 @@ typedef struct ListHead{
  * size 数据类型大小
  * return 返回一个结构体
  */
-List* list_init(enum ListType type);
+List* list_init(char ltype);
 
 //根据索引插入元素
 void list_insert(List* list,void* obj,int obj_size,int pos);
@@ -67,6 +73,14 @@ void list_set(List*  list,void* obj,int obj_size,int pos);
 //获取元素
 void* list_get(const List* list,int pos);
 void* list_getlast(const List* list);
+
+int list_getInt(void* obj);
+float list_getFloat(void* obj);
+short list_getShort(void* obj);
+long list_getLong(void* obj);
+char* list_getChars(void* obj);
+#define list_getStruct(obj,T) ((T*)(obj))
+
 
 //移除元素
 void list_removeObj(List* list,void* obj,void (*cmpFn)(List*,void*,void*));

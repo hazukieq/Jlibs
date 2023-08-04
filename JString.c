@@ -320,7 +320,7 @@ static List* __utf_getUtfobjs(JStr jc,int jclen){
 static JStr __ansi_subs(JStr jc,int jclen,int start,int end){
         //negative index=length of the string - positive index.
         if(start==0&&end==0) {
-                loge("start<%d> and end<%d> is zero,so return a empty string",start,end);
+                //loge("start<%d> and end<%d> is zero,so return a empty string",start,end);
                 return jstr_newempty();
         }
         if(start<0) {
@@ -335,12 +335,11 @@ static JStr __ansi_subs(JStr jc,int jclen,int start,int end){
 
         int size=end>start?end-start:start-end;
         if(size<=0) {
-                loge("jclen<%d>,size<%d>is 0,but func ignored it.(start<%d>,end<%d>)",jclen,size,start,end);
+                //loge("jclen<%d>,size<%d>is 0,but func ignored it.(start<%d>,end<%d>)",jclen,size,start,end);
                 return jstr_newempty();
         }
-        JStr new_jc=jstr_newlen("", size);
-        memcpy(new_jc,jc+start,size);
-        __str_memcpy(new_jc,size,jc+start,size);
+        JStr new_jc=jstr_newlen(jc+start, size);
+        //loge("_ansi_subs: %s",jc+start);
         return new_jc;
 }
 
@@ -586,12 +585,13 @@ static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const ch
 //失败时均返回原来字符,不会修改原来字符！
 static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old_jcs_len,const char* new_jc){
         int newlen=strlen(new_jc);
-        
+
         JStr copy_origin=jstr_newlen(origin,originlen);
         for(int i=0;i<old_jcs_len;i++){
                 //kmp算法匹配字符，并返回字符匹配数组和数组长度
                 int hitCounts=0;
-                int* hits=__str_kmp_search(copy_origin,jptr(copy_origin)->len,old_jcs[i],strlen(old_jcs[i]),&hitCounts);
+                int* hits=__str_kmp_search(copy_origin,jptr(copy_origin)->len,
+				old_jcs[i],strlen(old_jcs[i]),&hitCounts);
                 if(hits==NULL) {
                         free(hits);
                         hits=NULL;
@@ -618,26 +618,34 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                 }
                 
                 if(lastEnd<jptr(copy_origin)->len){
-                        JStr last_sni=__ansi_subs(copy_origin,jptr(copy_origin)->len,lastEnd,-1);
+                        JStr last_sni=__ansi_subs(copy_origin,
+					jptr(copy_origin)->len,lastEnd,-1);
                         tmps=__str_cat(tmps,jptr(tmps)->len,last_sni,strlen(last_sni));
                         jstr_free(last_sni);
                         last_sni=NULL;
                 }
-                
+          	
+		if(copy_origin) jstr_free(copy_origin);
                 copy_origin=jstr_newlen(tmps,jptr(tmps)->len);
                 jstr_free(tmps);
-                tmps=NULL;
+                
+		tmps=NULL;
                 hitCounts=0;
+
                 free(hits);
                 hits=NULL;
         }
 
-        if(copy_origin!=NULL){
+        if(copy_origin){
                 jstr_free(origin);
                 origin=jstr_newlen(copy_origin,jptr(copy_origin)->len);
                 jstr_free(copy_origin);
                 copy_origin=NULL;
         }
+	/*if(copy_origin){
+		loge("%s",copy_origin);
+		jstr_free(copy_origin);
+	}*/
         return origin;
 
 cleanup:
@@ -746,7 +754,8 @@ static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs
         if(jarrs==NULL) goto cleanup;
 
         //将后面的标志全都替换为相同的一个标志，方便后续文本分割处理
-        JStr copy_texts=__str_replace(texts, textslen,signarrs,signarrlens,signarrs[0]);
+        JStr copy_texts=jstr_newlen(texts,textslen);
+	copy_texts=__str_replace(copy_texts, textslen,signarrs,signarrlens,signarrs[0]);
 
         int hitCounts=0;
         int* hits=__str_kmp_search(copy_texts,jptr(copy_texts)->len,signarrs[0],strlen(signarrs[0]),&hitCounts);
@@ -754,10 +763,10 @@ static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs
 
         int lastEnd=0;
         int matcheds=0;
-        for(int i=0;i<hitCounts;i++){
+	for(int i=0;i<hitCounts;i++){
                 if(matcheds+2>inits){
                         inits *=2;
-                        JStr* tmps=realloc(jarrs,_IN(inits));
+                        JStr* tmps=realloc(jarrs,sizeof(JStr)*inits);
                         if(tmps==NULL) goto cleanup;
                         jarrs=tmps;
                         logc("reallocated memory successfully.");
@@ -765,27 +774,40 @@ static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs
 
                 JStr prev=__ansi_subs(copy_texts,jptr(copy_texts)->len,lastEnd,hits[i]);
                 jarrs[i]=prev;
-                lastEnd=hits[i]+strlen(signarrs[0]);
+                
+		lastEnd=hits[i]+strlen(signarrs[0]);
                 matcheds+=1;
         }
-        if(lastEnd<textslen){
+        
+	if(lastEnd<textslen){
                 JStr last_sni=__ansi_subs(texts,textslen,lastEnd,-1);
                 jarrs[matcheds]=last_sni;
+		//因为索引是从0开始的，所以这里matcheds是最后一个(总长度永远比实际最后索引多1)
+		//所以要+1.
+		matcheds++;
         }
 
+      
+       if(copy_texts) jstr_free(copy_texts);
+       if(hits) free(hits);
+       
        if(resultlen==NULL) goto cleanup;
        *resultlen=matcheds;
        return jarrs;
 cleanup:
-       if(jarrs) free(jarrs);
+        if(jarrs){
+		for(int i=0;i<matcheds;i++)
+			free(jarrs[i]);
+	       free(jarrs);
+       }
+       if(copy_texts) free(copy_texts);
        if(hits) free(hits);
        return NULL;
 }
 
 static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int* resultlen){
         int inits=10;
-        JStr* jarrs=NULL;
-        jarrs=malloc(sizeof(JStr)*inits);
+        JStr* jarrs=malloc(sizeof(JStr)*inits);
         if(jarrs==NULL) return NULL;
 
         int siglen=strlen(signals);
@@ -811,13 +833,20 @@ static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int*
         if(lastEnd<textslen){
                 JStr last_sni=__ansi_subs(texts,textslen,lastEnd,-1);
                 jarrs[hitCounts]=last_sni;
+		//同理由于索与从0开始，所以需要+1
+		hitCounts++;
         }
 
+	if(hits) free(hits);
         if(resultlen==NULL) goto cleanup;
         *resultlen=hitCounts;
         return jarrs;
 cleanup:
-        if(jarrs) free(jarrs);
+        if(jarrs){
+		for(int i=0;i<hitCounts;i++)
+			free(jarrs[i]);
+		free(jarrs);
+	}
         if(hits) free(hits);
         return NULL;
 }
@@ -862,13 +891,16 @@ static int __str_bin2int(char* chars){
         bytes=__str_binarrs2int(chars);
         int inum;
         memcpy(&inum,bytes,sizeof(int));
-        return inum;
+        free(bytes);
+	return inum;
 }
 
 //数字转十六进制字符串
 static JStr __str_int2hex(int n){
-        char bin[8];
-        
+        //为什么需要9位呢？
+	//因为一个int类型为4byte(32bit)，且一个十六进制为4位bit
+	//故 32/4=8,最后一位用来填充字符总结符'\0'
+	char bin[9];
         //正负数标识符
         int sign=n>=0?0:1;
  
@@ -895,15 +927,13 @@ static JStr __str_int2hex(int n){
         //添加字符组结束标识 
         bin[i]='\0';
         //因为十六进制转化是从右到左的，所以需要逆序调整为正确顺序
-        for(int ij=0;ij<8;ij++) logi((unsigned char)bin[ij],c,"");
-
+        //for(int ij=0;ij<8;ij++) logi((unsigned char)bin[ij],c,"");
 	for(int j=0;j<i/2;j++){
                 unsigned char tmp=bin[j];
 		bin[j]=bin[i-j-1];
                 bin[i-j-1]=tmp;
         }
-	logi(bin,s,"");
-
+	//logi(bin,s,"");
         if(__str_checkEndianfmt()){       
                 for(int i=0;i<3;i+=2){
                         unsigned char tmp=bin[i];
@@ -923,20 +953,23 @@ static JStr __str_int2hex(int n){
 
 // 把整数转化为二进制字符串
 static JStr __str_int2bin(int n) {
-    char bin[32];
+    char bin[33];
     int i = 0;
     int sign = n >= 0 ? 0 : 1; // 符号位
     if (sign) n = -n; // 取绝对值
+    
     while (n > 0) {
         bin[i++] = n % 2 + '0'; // 除2取余法
         n /= 2;
     }
+    
     while (i < 31) {
         bin[i++] = '0'; // 补齐剩余位
     }
     bin[i++] = sign + '0'; // 加上符号位
     bin[i] = '\0';// 字符串结束标志
-    // 反转字符串
+    
+    //反转字符串
     for (int j = 0; j < i / 2; j++) {
         char temp = bin[j];
         bin[j] = bin[i - j - 1];
@@ -970,9 +1003,10 @@ static JStr __str_int2bin(int n) {
 //数字转数字字符串
 static JStr __str_tostr(int num){
         int digits=__str_getdigits(num); 
-        JStr jc=jstr_newlen("",digits);
-        if(jc==NULL) return "0";
-        int i=0;
+	char* jc=malloc(digits+1);
+	if(jc==NULL) return jstr_new("0");
+        
+	int i=0;
         if(num<0){
                 num=-num;
                 jc[i]='-';
@@ -988,7 +1022,8 @@ static JStr __str_tostr(int num){
         }while(num);
 
         jc[i]='\0';
-        int j=0;
+        
+	int j=0;
         if(jc[0]=='-'){
                 j=1;
                 ++i;
@@ -1001,7 +1036,9 @@ static JStr __str_tostr(int num){
                 jc[i-j-1]=tmp;
         }
 
-        return jc;
+        JStr jz=jstr_new(jc);
+	if(jc) free(jc);
+	return jz;
 }
 
 //数字转数字字符串
@@ -1093,8 +1130,7 @@ JStr jstr_newlen(const void* str,int len){
         //初始化标识符
         *jstr->isJstr='1';
 
-        if(len&&str)
-                memcpy(jstr->buf,str,len);
+        if(len&&str) memcpy(jstr->buf,str,len);
         __str_addEndMark(jstr->buf,len);
         return (char*) jstr->buf;
 }
@@ -1565,7 +1601,9 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag){
                         prev=jstr_subsAnsi(jc,lastEnd,i);
                         tmp=jstr_cat(tmp,prev);
                         tmp=jstr_cat(tmp,tag);
-                        lastEnd=i;
+                        jstr_free(prev);
+			prev=NULL;
+			lastEnd=i;
                 }
         }
 
@@ -1591,8 +1629,14 @@ JStr jstr_str2bin(const char *jc, int ispad, char pad_tag){
 }
 
 //测试范例
-void jstr_test(){
-        //--jstr_replace--/
+void jstr_test(){ 
+	//PASS---jstr_init---/
+	JStr j=jstr_new("hello,world!");
+	printf("%s\n",j);
+	jstr_free(j);
+	
+	
+	//PASS--jstr_cat--/
 	char* file_path="long.txt";
         FILE* f=fopen(file_path,"r");
         if(f==NULL){
@@ -1606,112 +1650,117 @@ void jstr_test(){
         while(fgets(line,1024,f)){
                 longexts=jstr_cat(longexts,line);
         }
-        fclose(f);
-
-        longexts=jstr_replace(longexts,"の","的");
+        fclose(f);	
         logi(longexts,s,"");
-        //---jstr_replace--/
-
-        //---jstr_splits--/
-        char* examples=jstr_new("name:hello,world\nage:20;class:2041;tel:19914834737|email:263@hazu.com");
+        jstr_free(longexts);	
+	//---jstr_cat---/
+	
+	//PASS--jstr_replace---/
+	char* old_jc="系";
+	char* old_jcs[1];
+	old_jcs[0]=old_jc;
+	char* new_jc="的";
+	JStr rlongexts=jstr_new("he咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？");
+        rlongexts=jstr_replace(rlongexts,"是","系","he");
+	logc("\n原句子: 系咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？\n替换后: %s",rlongexts);
+	jstr_free(rlongexts);
+	//---jstr_replace--/
+	
+        //PASS---jstr_slit--/
+        JStr examples=jstr_new("name:hello,world\nage:20;class:2041;tel:19914834737|email:263@hazu.com");
        
         int examplen=0;
         JStr* exampleJarrs=jstr_slit(examples,&examplen,";","\n","\t","|");
         for(int i=0;i<examplen;i++)
                 printf("=>[%s]\n",exampleJarrs[i]);
         puts("\n");
-
-        int longlens=0;
-        JStr* jss=jstr_splits(longexts,"<br>",&longlens);
-       
-        jstr_frees(exampleJarrs,examplen);
-
+        if(exampleJarrs) jstr_frees(exampleJarrs,examplen);
+        jstr_free(examples);
+	//---jstr_slit---/
+	
+	 //PASS---jstr_splits---/
+	int longlens=0;
+        JStr s=jstr_new("哈哈哈哈哈哈<br>你系哪人也？<br>真可恶！");
+	JStr* jss=jstr_splits(s,"<br>",&longlens);
         for(int i=0;i<longlens;i++)
                printf("==> \033[0;36m%s\n\033[0m",jss[i]);
         jstr_frees(jss,longlens);
-        //---jstr_splits--/
-
-
+	jstr_free(s);
+	//---jstr_splits--/	
+		
         //---jstr_insert---/
-        char* j1=jstr_new("吾系客家人");
-        char* j2=jstr_insert(j1,",好食客家菜！",-1);
-        logi(j2,s,"");
-        //---jstr_insert---/
-
-
-        //---jstr_displace--/
+        JStr j1=jstr_new("吾系客家人");
+        j1=jstr_insert(j1,",好食客家菜！",-1);
+        logi(j1,s,"");
+        jstr_free(j1);
+	//---jstr_insert---/
+	
+        //PASS---jstr_contains&&jstr_displace--/
         JStr distr=jstr_new("吾系客家人，好食客家菜！客家人系真勤劳个人呐！Installation packages for Audacity are provided by many GNU/Linux and Unix-like distributions. Use the distribution’s usual package manager (where available) to install Audacity. If necessary, you could try searching for an appropriate Audacity package on rpmseek.");
         
         logi(jstr_contains(distr,"Audacity"),d,"");
 
-        char* c=jstr_replace(distr,"**","Audacity");
-        logi(c,s,"");
-        //---jstr_displace--/
+        distr=jstr_displaces(distr,"Audacity","**");
+        logi(distr,s,"");
+        jstr_free(distr);
+	//---jstr_displace--/
         
-        
-        //---jstr_toint---/
+         
+        //PASS---jstr_toint---/
         JStr jci=jstr_new("12345678");
         int isa=jstr_str2num(jci);
         logi(isa,d,"");
-
+	jstr_free(jci);
+	
         int iza=jstr_str2numlen("12345678",sizeof(char)*8);
         logi(iza,d,"");
-
-        int sin=987654321;
-        if(jstr_isnum(jci)==1) logc("jci<%s> is a number.",jci);
-        logi(jstr_num2str(sin),s,"");
-        //---jstr_toint---/
         
-        //---jstr_merge---/
-        JStr _s=jstr_merge("\njstr_merge:\n\nhello,world","!","And jci=<",jci,">","\ndistr:",c,"\nlongexts：\n",longexts);
-        logi(_s,s,"");
-
-        jstr_clear(c);
+	int sin=987654321;
+        JStr sj=jstr_new("123456789");
+	if(jstr_isnum(sj)==1) logc("sj<%s> is a number.",sj);
+        jstr_free(sj);
+	
+	JStr cj=jstr_num2str(sin);
+	logi(cj,s,"");
+	if(cj) jstr_free(cj);
+	//---jstr_toint---/
+	
+	
+        //PASS---jstr_merge---/
+	JStr mexts=jstr_new("this is a mergement setences hhaha...");
+        JStr _s=jstr_merge("\njstr_merge:\n\thello,world","!","\n\tdistr:","hello","\n\tlongexts：\n\t",mexts);
+	logi(_s,s,"");
         jstr_free(_s);
-        jstr_free(longexts);
-
-        struct Lk{
-                char* name;
-                char numbers[12];
-                char* gender;
-                char   telenum[12];
-                int age;
-        };
-
-        struct Lk lk={
-                .name="hazukie",
-                .gender="male",
-                .numbers="99999999999",
-                .telenum="11111222220",
-                .age=19
-        };
-        struct Lk* lptr=&lk;
-        char* ptet=jstr_merge("\n",lptr->name,"\n",lptr->gender,"\n",lptr->numbers,"\n",lptr->telenum);
-        logi(ptet,s,"");
-        jstr_free(ptet);
-        //---jstr_merge--/
-        
-        //---jstr_int2bin&jstr_bin2int--/ 
+        jstr_free(mexts);
+	//---jstr_merge---/
+		
+	
+        //PASS---jstr_int2bin&jstr_bin2int--/ 
         //big endian: 0x499602d2
         //little endian: 0xd2029649
         
         //big: 0b01001001 10010110 00000010 11010010
         //sma: 0b11010010 00000010 10010110 01001001
         JStr ibinarys=jstr_int2bin(1234567890);
-        int inum=jstr_bin2int(ibinarys);
+        logi(ibinarys,s,"");
+	int inum=jstr_bin2int(ibinarys);
         logc("i=%d,i_binary_fmt=0b%s",inum,ibinarys);
-        //---jstr_int2bin&jstr_bin2int--/
-        
-        //---str2struct---/
+        jstr_free(ibinarys);
+	//---jstr_int2bin&jstr_bin2int--/
+	
+        //PASS---str2struct---/
         struct Lkp{
                 int id;
                 int score;
-                char name[10];
+                char name[12];
         };
-        char* spj=malloc(sizeof(struct Lkp));//"hello,world\x00\x2e\xfd\x69\xb6\x01\x00\x00\x00";
-        memset(spj,'0',sizeof(struct Lkp));
-        int qe=-1234567890;
-        char we[4];
+        
+	char* spj=malloc(sizeof(struct Lkp));//"hello,world\x00\x2e\xfd\x69\xb6\x01\x00\x00\x00"; 
+        logi(sizeof(struct Lkp),ld,"");
+	memset(spj,'0',sizeof(struct Lkp));
+        
+	int qe=-1234567890;
+        unsigned char we[4];
         memcpy(we,&qe,4);
 
         for(int i=0;i<4;i++) spj[i]=we[i];
@@ -1722,17 +1771,23 @@ void jstr_test(){
         
         char jell[]="hello,world";
         for(int i=8;i<20;i++) spj[i]=jell[i-8];
-        spj[20]='\x00';
+        spj[19]='\x00';
 
-        logi(sizeof(struct Lkp),ld,"");
         struct Lkp lkp;
         memcpy(&lkp,spj,sizeof(struct Lkp));
         struct Lkp* lkptr=(struct Lkp*)&lkp;
-        logc("name->%s,id->%d,score->%d",lkptr->name,lkptr->id,lkptr->score);
         
-        JStr jhex=jstr_int2hex(110);
-        JStr jhexp=jstr_slicadd(jhex,2,"\\x");
-        logc("jhexp=%s\n",jhexp);
+	logc("name->%s,id->%d,score->%d",lkptr->name,lkptr->id,lkptr->score);
+        free(spj);
+	//---str2struct---/
+	
+	//PASS---jstr_int2hex&jstr_slicadd---/
+        JStr jhex=jstr_int2hex(1234567890);
+	JStr jhexp=jstr_slicadd(jhex,2,"\\x");
+        logc("jhexp=%s",jhexp);
         logi(jhex,s,"");
+	jstr_free(jhex);
+	jstr_free(jhexp);
+	//---jstr_int2hex&jstr_slicadd--/
 }
 
