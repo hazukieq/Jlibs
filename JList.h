@@ -1,8 +1,10 @@
 #ifndef __JLIST_H_
 #define __JLIST_H_
 
-#include <stdio.h>
 #include <malloc.h>
+#include <stdio.h>
+#include <memory.h>
+#include <stdlib.h>
 
 
 #define list_foreach(list,execueteFn) \

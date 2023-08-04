@@ -1,7 +1,4 @@
 #include "JString.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 /**---内部宏---*/
 //输出红色警告信息
 //int转char
@@ -1637,7 +1634,7 @@ void jstr_test(){
 	
 	
 	//PASS--jstr_cat--/
-	char* file_path="~/cprojects/Jlibs/test/long.txt";
+	char* file_path="/home/hazukie/cprojects/Jlibs/test/long.txt";
         FILE* f=fopen(file_path,"r");
         if(f==NULL){
 		logc("the file<%s> is not found,so failed.",file_path);

@@ -1,10 +1,10 @@
 #ifndef __JSTRING_H_
 #define __JSTRING_H_
-
 #include "JList.h"
 #include <stdio.h>
-#include <string.h>
 #include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define __regexs(...) (const char*[]){__VA_ARGS__},sizeof((const char*[]){__VA_ARGS__})/sizeof(char*)
 

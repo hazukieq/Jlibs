@@ -1,7 +1,4 @@
-#include <stdio.h>
 #include "JList.h"
-#include <memory.h>
-#include <stdlib.h>
 
 //循环链表方法实现
 static void forEach(const List* list,void (*executeFn)(void*)){
