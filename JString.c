@@ -1637,7 +1637,7 @@ void jstr_test(){
 	
 	
 	//PASS--jstr_cat--/
-	char* file_path="long.txt";
+	char* file_path="~/cprojects/Jlibs/test/long.txt";
         FILE* f=fopen(file_path,"r");
         if(f==NULL){
 		logc("the file<%s> is not found,so failed.",file_path);
