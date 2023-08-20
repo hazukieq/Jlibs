@@ -1,4 +1,5 @@
 #include "JString.h"
+#include <stdio.h>
 #include <sys/types.h>
 /**---内部宏---*/
 //输出红色警告信息
@@ -1467,13 +1468,13 @@ JStr jstr_insert(JStr jc,const char* insertJc,int startIndex){
         return __str_insert(jc,insertJc,startIndex);
 }
 
-void jstr_cat(JStr jc1,const char* jc2){
-        if(jc1==NULL||jc2==NULL) {
-                loge("jc1<%s> or jc2<%s> is null",jc1,jc2);
-                return;
-        }
-        assertJc(jc1,);
-        __str_cats(&jc1,jptr(jc1)->len,jc2,strlen(jc2));
+void jstr_cat(JStr* jc1,const char* jc2){
+	if(jc1==NULL||jc2==NULL) {
+		loge("jc<%s> or jc2<%s> is null.",*jc1,jc2);
+		return;
+	}
+	assertJc(*jc1,);
+	__str_cats(jc1,jptr(*jc1)->len,jc2,strlen(jc2));
 }
 
 //推荐使用宏函数jstr_merge
@@ -1607,9 +1608,9 @@ JStr jstr_str2bin(const char *jc, int ispad, char pad_tag){
 //测试范例
 void jstr_test(){ 
 	//PASS---jstr_init---/
-	JStr j=jstr_new("hello,world!");
-	printf("%s\n",j);
-	jstr_free(j);
+	//JStr j=jstr_new("hello,world!");
+	//printf("%s\n",j);
+	//jstr_free(j);
 	
 	
 	//PASS--jstr_cat--/
@@ -1624,7 +1625,7 @@ void jstr_test(){
         
         int record=0;
         while(fgets(line,1024,f)){
-                jstr_cat(longexts,line);
+                jstr_cat(&longexts,line);
         }
         fclose(f);	
         logi(longexts,s,"");
@@ -1632,7 +1633,7 @@ void jstr_test(){
 	//---jstr_cat---/
 	
 	
-	//PASS--jstr_replace---/
+	/*PASS--jstr_replace---/
 	JStr plongexts=jstr_new("he咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？");
         JStr rlongexts=jstr_replace(plongexts,"是","系","he");
 	logc("\n原句子: 系咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？\n替换后: %s",rlongexts);
@@ -1769,16 +1770,28 @@ void jstr_test(){
 	jstr_free(jhex);
 	jstr_free(jhexp);
 	//---jstr_int2hex&jstr_slicadd--/
+	*/
 }
 
 
 int main(){
-	//--PASS __str_cats---/
-	JStr hello=jstr_new("hello");
-	__str_cats(&hello,strlen(hello),",world!",strlen(",world!"));
-	logc("hello=%s",hello);
-	jstr_auto(hello);
-	//--__str_cats--/	
+	//jstr_test();	
+	char* file_path="/home/hazukie/cprojects/Jlibs/test/long.txt";
+        FILE* f=fopen(file_path,"r");
+        if(f==NULL){
+		logc("the file<%s> is not found,so failed.",file_path);
+		return 0;
+	}
+	char line[1024];
+        JStr longexts=jstr_newempty();
+        int record=0;
+        while(fgets(line,1024,f)){
+		jstr_cat(&longexts,line);
+        }
+        fclose(f);	
+        logi(longexts,s,"");
+        jstr_free(longexts);	
+
 	return 0;
 }
 

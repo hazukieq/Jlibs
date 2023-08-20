@@ -36,7 +36,9 @@ int jstack_len(JStack* jst);
 int jstack_isnone(JStack* jst);
 
 void* jstack_top(JStack* jst);
+//记得手动释放内存!!
 void* jstack_pop(JStack* jst);
+void jstack_pop_free(void* void_obj);
 void jstack_push(JStack* jst,void* data,int size);
 
 void jstack_reverse(JStack* jst);

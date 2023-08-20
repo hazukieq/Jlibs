@@ -25,9 +25,9 @@ void jsha_printobj(shacontext* context);
 char* jsha_getjson(shacontext* context);
 
 //获取哈希二进制字符串
-void jsha_getbin(const unsigned char* hash,char* split_tag,char** binptr_ptr);
+char* jsha_getbin(const unsigned char* hash,char split_tag);
 //获取哈希十六进制字符串
-void jsha_gethex(const unsigned char* hash,char* split_tag,char** hexptr_ptr);
+char* jsha_gethex(const unsigned char* hash,char split_tag);
 
 //打印
 void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag);

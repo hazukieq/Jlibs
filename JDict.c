@@ -1,8 +1,13 @@
 #include "JDict.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define CH(x) ((char*)(x))
 #define T(x,type) ((type)(x))
 #define LOAD_FACTOR(x) ((x)->lfactor_fn((x)->size,(x)->capacity))
+#define LOOP(_i,start,end) for(int _i=start;_i<end;_i++)
+
 static unsigned int __hash_fn(void* key){
 	unsigned int hash=0;
 	
@@ -10,6 +15,7 @@ static unsigned int __hash_fn(void* key){
 	char* k=CH(key);
 	jsha_hash(k,strlen(k), &out);
 	hash = *((unsigned int*)out);
+	if(out) free(out);
 
 	return hash;
 }
@@ -21,34 +27,39 @@ static double __loadfactor(int size,int capacity){
 //覆盖式申请内存
 static void _extend(JDict** jdict){
 	JDict* dict=*jdict;
-
 	int new_mem=dict->capacity*2;
 	JDict* new_dict=(JDict*)malloc(sizeof(JDict)+sizeof(dhead*)*new_mem);
 	if(new_dict==NULL){
 		printf("malloc failed\n");
-	}else{
-		printf("realloc memory successfully(%d)\n",new_mem);
-		new_dict->hash_fn=__hash_fn;
-		new_dict->lfactor_fn=__loadfactor;
-		new_dict->capacity=new_mem;
-		new_dict->size=0;
-		new_dict->sizemask=new_mem-1;
-		
-		dhead** table=malloc(sizeof(dhead*)*new_mem);
-		if(table==NULL) return;
-		memcpy(new_dict->table,table,sizeof(dhead*)*new_mem);	
-		for(int i=0;i<new_dict->capacity;i++) 
-			new_dict->table[i]=_dhead_init();
-		free(table);
-		int len=0;
-		dnode** entries=jdict_entries(dict,&len);
-		if(len>0){
-			for(int i=0;i<len;i++)
-				jdict_set(&new_dict,entries[i]->key,entries[i]->val);
-			new_dict->size=len;
-			printf("used_size=>%d\n",new_dict->size);
-		}
+		return;
 	}
+	
+	printf("realloc memory successfully(%d)\n",new_mem);
+	new_dict->hash_fn=__hash_fn;
+	new_dict->lfactor_fn=__loadfactor;
+	new_dict->capacity=new_mem;
+	new_dict->size=0;
+	new_dict->sizemask=new_mem-1;
+	
+	dhead** table=malloc(sizeof(dhead*)*new_mem);
+	if(table==NULL) return;
+	memcpy(new_dict->table,table,sizeof(dhead*)*new_mem);	
+	for(int i=0;i<new_dict->capacity;i++) 
+		new_dict->table[i]=_dhead_init();
+	free(table);
+	
+	int len=0;
+	dnode** entries=jdict_entries(dict,&len);
+	if(len>0){
+		for(int i=0;i<len;i++){
+			jdict_set(&new_dict,entries[i]->key,entries[i]->val);
+		}
+		new_dict->size=len;
+		printf("used_size=>%d\n",new_dict->size);
+	}
+
+	jdict_entries_free(entries,len);
+	jdict_release(*jdict);
 	*jdict=new_dict;
 }
 
@@ -92,6 +103,7 @@ static void _update_dhead(JDict* dict,dhead* head,dnode* node){
 	while(current){
 		if(dict->hash_fn(node->key)==dict->hash_fn(current->key)){
 			current->val=node->val;
+			free(node);
 			return;
 		}
 		current=current->next;
@@ -169,6 +181,8 @@ void* jdict_get(JDict* dict,void* key){
 					}
 
 void** jdict_keys(JDict* dict,int* keys_len){
+	if(dict==NULL||dict->size==0) return NULL;
+	
 	void** keys=malloc(dict->size*sizeof(void*));
 	if(keys==NULL||keys_len==NULL) return NULL;
 
@@ -178,14 +192,60 @@ void** jdict_keys(JDict* dict,int* keys_len){
 	return keys;
 }
 
+void jdict_keys_free(void **keys){
+	if(keys) free(keys);
+}
+
 dnode** jdict_entries(JDict* dict,int* entries_len){
-	dnode** entries=malloc(sizeof(dnode*)*dict->size);
-	if(entries==NULL||entries_len==NULL) return NULL;
+	if(dict==NULL||dict->size==0) return NULL;
+	int mlen=dict->size;
+	dnode** entries=malloc(sizeof(dnode*)*mlen);
+	if(entries==NULL) return NULL;
+	if(entries_len==NULL) return NULL;
 
 	int len=0;
-	DICT_CYCLE(dict,entries[len++]=cur;cur=cur->next;);
+	//DICT_CYCLE(dict,memcpy(entries[len],cur,sizeof(dnode));cur=cur->next;len++;);
+	LOOP(i,0,dict->capacity){
+		if(dict->table[i]){
+			dnode* cur=dict->table[i]->next;
+			while(cur){
+				if(mlen>len){
+					int tmp=mlen*2;
+					dnode** nentries=malloc(sizeof(dnode*)*tmp);
+					if(nentries==NULL){
+						LOOP(h,0,mlen) free(entries[h]);
+						free(entries);
+						return NULL;
+					}
+					LOOP(i,0,mlen){
+						if(entries[i]) nentries[i]=entries[i];
+					}
+					free(entries);
+					entries=nentries;
+				}
+				
+				entries[len]=malloc(sizeof(dnode));
+				if(entries[len]==NULL){
+					LOOP(k,0,mlen) free(entries[k]);
+					free(entries);
+					return NULL;
+				}
+				memcpy(entries[len++],cur,sizeof(dnode));
+				cur=cur->next;
+			}
+		}
+	}
+		
 	*entries_len=len;
 	return entries;
+}
+
+void jdict_entries_free(dnode** entries, int entries_len){
+	if(entries_len==0) return;
+	LOOP(k,0,entries_len){
+		if(entries) free(entries[k]);
+	}
+	free(entries);
 }
 
 void jdict_setbyVal(JDict* dict,void* old_value,void* new_value){
@@ -254,58 +314,99 @@ void jdict_clear(JDict** dict){
 		while(keys&&keys_len--)
 			jdict_del(*dict,keys[keys_len]);
 	}
-
+	jdict_keys_free(keys);
+}
+void jdict_empty(JDict* dict){
+	if(dict==NULL) return;
+	for(int i=0;i<dict->capacity;i++){
+		if(dict->table[i]){
+			dnode* cur=dict->table[i]->next;
+			while(cur){
+				dnode* next=cur->next;
+				free(cur);
+				cur=next;
+				if(next==NULL) break;
+			}
+			free(dict->table[i]);
+		}
+	}
 }
 
-void jdict_release(JDict** dict){
-	if(dict) return;
-	jdict_clear(dict);
-	
-	if(*dict) free(*dict);
+
+void jdict_release(JDict* dict){
+	if(dict==NULL) return;
+	jdict_empty(dict);
+	if(dict) free(dict);
 }
 
 
 void jdict_test(){
-	JDict* dict=jdict_init();
-	jdict_set(&dict,"hello","2593753494");
-	jdict_set(&dict,"hello","world");
-	jdict_set(&dict,"hello","加油！");
-	jdict_set(&dict,"world","this is a another thing.");
-	jdict_del(dict, "hello");
+	//--PASS jdict_init--/
+	//--PASS jdict_release--/
+	//--PASS jdict_empty--/
+	//--PASS jdict_set--/
+	//--PASS jdict_del--/
+	//--PASS jdict_remove--/
+	//--PASS _extend--/
+	//--PASS jdict_entries--/
+	//--PASS jdict_keys--/
+	JDict* ldict=jdict_init();
+	jdict_set(&ldict,"hello","2593753494");
+	jdict_set(&ldict,"hello","hazukie erii how are you?");
+	jdict_set(&ldict,"khello","world");
+	jdict_set(&ldict,"lhello","world");
+	jdict_set(&ldict,"world","this is a another thing.");
+	jdict_del(ldict, "hello");	
+	jdict_remove(ldict,"world");
 
-	for(int i=0;i<1200;i++){
-		char* key=malloc(12);
-		sprintf(key,"%di",i);
-		jdict_set(&dict,key,"hello");
-	}
-	printf("loadfactor:%f\n",dict->lfactor_fn(dict->size,dict->capacity));
-	
-	
-	jdict_remove(dict,"hello");
-	
+	char key[12];
 	for(int i=0;i<100;i++){
-		char* key=malloc(12);
 		sprintf(key,"%di",i);
-		jdict_set(&dict,key,"alova hello");
+		jdict_set(&ldict,key,"hello");
+	}
+	printf("loadfactor:%f,capacity->%d,size->%d\n",ldict->lfactor_fn(ldict->size,ldict->capacity),ldict->capacity,ldict->size);
+	jdict_release(ldict);
+
+
+	//--PASS jdict_keys&jdict_entries--/	
+	JDict* kdict=jdict_init();
+	int klen=0;	
+	void** keys=jdict_keys(kdict,&klen);
+	LOOP(k,0,klen) printf("key->%s\n",(char*)keys[k]);
+	free(keys);
+	int elen=0;
+	dnode** entries=jdict_entries(kdict,&elen);
+	printf("len->%d\n",elen);
+	if(entries){
+		LOOP(j,0,elen){
+			printf("entries[%d]: dnode<%s,%s>\n",j,(char*)entries[j]->key,(char*)entries[j]->val);
+		}
+	}
+	jdict_entries_free(entries, 1);
+	jdict_release(kdict);
+	//--jdict_entries&jdict_entries--/
+	
+		
+	//--PASS jdict_for--/	
+	//--PASS jdict_setbyVal--/
+	//--PASS jdict_print--/
+	//--PASS jdict_get--/
+	//--PASS jdict_clear--/
+	//
+	JDict* dict=jdict_init();
+	char lkey[12];
+	for(int i=0;i<100;i++){
+		sprintf(lkey,"%di",i);
+		jdict_set(&dict,lkey,"alova hello");
 	}
 
-	jdict_for(dict,cur)
-		printf("\033[0;32mfor_loop: <%s,%s>\n\033[0m",(char*)cur->key,(char*)cur->val);
+	jdict_for(dict,cur){
+		if(cur) printf("\033[0;32mfor_loop: <%s,%s>\n\033[0m",(char*)cur->key,(char*)cur->val);
+	}
 
 	jdict_setbyVal(dict,"alova hello","alova q'hello");
 	jdict_print(dict);	
 	
-	int entries_len=0;
-	dnode** entries=jdict_entries(dict, &entries_len);
-	for(int j=0;j<entries_len;j++) printf("%d: key,val=>Entry<%s,%s>\n",
-			j+1,(char*)entries[j]->key,(char*)entries[j]->val);
-	free(entries);
-	
-	int keylens=0;
-	void** keys=jdict_keys(dict,&keylens);
-	for(int i=0;i<keylens;i++)printf("%d:Key<%s>\n",i+1,(char*)keys[i]);
-	free(keys);
-
 	printf("used_size:%d,capacity:%d\n",dict->size,dict->capacity);
 	
 	void* val=jdict_get(dict,"world");
@@ -314,14 +415,12 @@ void jdict_test(){
 	jdict_clear(&dict);
 	jdict_set(&dict,"world","hahahha,this is another new hash_dict dayo~");
 	jdict_print(dict);
-	jdict_release(&dict);
-
+	jdict_release(dict);
 }
 
-/*
- *int main(void){
+
+/*int main(void){
  	jdict_test();
 	return 0;
- }
- */
+ }*/
 

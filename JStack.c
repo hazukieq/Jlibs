@@ -1,14 +1,20 @@
 #include "JStack.h"
 
 static JNode* __jst_create_snode(void* data,int size){
-        JNode* jnode=malloc(sizeof(JNode));
+        if(data==NULL||size==0) return NULL;
+
+	JNode* jnode=malloc(sizeof(JNode));
         if(jnode==NULL) return NULL;
 
         void* jdata=malloc(size);
-        void* check=memcpy(jdata,data,size);
+        if(jdata==NULL){
+		if(jnode) free(jnode);
+		return NULL;
+	}
+	void* check=memcpy(jdata,data,size);
         if(check==NULL) return NULL;
-        jnode->data=jdata;
         
+	jnode->data=jdata;
         jnode->size=size;
         jnode->next=NULL;
         return jnode;
@@ -25,22 +31,12 @@ JStack* jstack_init(){
 }
 
 
-void jstack_release(JStack* jst){
-        if(jst==NULL) return;
-        
-        jstack_empty(jst);
-        free(jst);
-        jst=NULL;
-}
-
 void jstack_empty(JStack* jst){
         if(jst==NULL) return;
         
         JNode* current=jst->top;
-        JNode* next=NULL;
-
-        while(--jst->len>0){
-                next=current->next;
+        while(current){
+                JNode* next=current->next;
                 free(current->data);
                 free(current);
                 current=next;
@@ -48,6 +44,14 @@ void jstack_empty(JStack* jst){
 
         jst->len=0;
         jst->top=NULL;
+}
+
+void jstack_release(JStack* jst){
+        if(jst==NULL) return;
+        
+        jstack_empty(jst);
+        free(jst);
+        jst=NULL;
 }
 
 
@@ -73,14 +77,23 @@ void* jstack_pop(JStack* jst){
         if(current==NULL) return NULL;
 
         JNode* next=current->next;
-        void* data=current->data;
+        void* data=malloc(current->size);
+	if(data==NULL) return NULL;
+	memcpy(data,current->data,current->size);
+	
+	free(current->data);
         free(current);
-        jst->top=next;
+        
+	jst->top=next;
         jst->len--;
 
         return data;
 }
+void jstack_pop_free(void *void_obj){
+	if(void_obj) free(void_obj);
+}
 
+//size包含字符结束标志\0,若使用strlen则请+1
 void jstack_push(JStack* jst,void* data,int size){ 
         if(jst==NULL||data==NULL) return;
 
@@ -128,19 +141,29 @@ void jstack_reverse(JStack* jst){
 
 
 void jstack_test(){
-        JStack* jst=jstack_init();
+        //--PASS jstack_init--/
+	//--PASS jstack_push--/
+	//--PASS jstack_top--/
+	//--PASS jstack_pop--/
+	//--PASS jstack_reverse--/
+	JStack* jst=jstack_init();
 
+        jstack_push(jst,"hello",6);
         int i=0;
         while(++i<101){
                 jstack_push(jst,&i,sizeof(int));
         }
 
         jstack_reverse(jst);
-        
         printf("jstack_top->%d\n",*((int*)jstack_top(jst)));
-        while(jst->len>0)
-                printf("_rever=> %d\n",*((int*)jstack_pop(jst)));
-        
-        jstack_release(jst);
+
+	void* s=jstack_pop(jst);
+        printf("_rever=> %s\n",(char*)s);
+        jstack_pop_free(s);
+	jstack_release(jst);
 }
 
+int main(){
+	jstack_test();
+	return 0;
+}

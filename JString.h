@@ -166,7 +166,7 @@ JStr jstr_insert(JStr jc,const char* insertJc,int startIndex);
 /**
  * 注意不能直接赋值给origin,如 origin=jstr_cat(origin...),否则会出现内存泄漏!!!
  */
-void jstr_cat(JStr jc1,const char* jc2);
+void jstr_cat(JStr* jc1,const char* jc2);
 
 JStr jstr_merges(const char** carrs,int len);
 

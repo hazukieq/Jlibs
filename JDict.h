@@ -45,8 +45,12 @@ JDict* jdict_init();
 void jdict_set(JDict** jdict,void* key,void* value);
 void* jdict_get(JDict* dict,void* key);
 
+//记得手动释放内存!!!
 void** jdict_keys(JDict* dict,int* keys_len);
+void jdict_keys_free(void** keys);
+//记得手动释放内存!!!
 dnode** jdict_entries(JDict* dict,int* entries_len);
+void jdict_entries_free(dnode** entries,int entries_len);
 
 #define jdict_for(dict,cur) for(int i=0;i<dict->capacity;i++)\
 				      for(dnode* cur=dict->table[i]->next;cur;cur=cur->next)
@@ -72,7 +76,8 @@ void jdict_remove(JDict* dict,void* value);
 void jdict_clear(JDict** dict);
 
 //释放哈希表内存
-void jdict_release(JDict** dict);
+void jdict_empty(JDict* dict);
+void jdict_release(JDict* dict);
 
 //测试函数
 void jdict_test();

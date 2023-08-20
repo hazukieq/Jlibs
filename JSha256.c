@@ -192,6 +192,7 @@ static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
     	copy_uint32(out + 7, h7);
 }
 
+//需要手动释放内存！！！
 void jsha_hash(const char* data,size_t len, unsigned char** outptr_ptr){
 	if(data==NULL) {
 		printf("data cannot be NULL\n");
@@ -207,6 +208,7 @@ void jsha_hash(const char* data,size_t len, unsigned char** outptr_ptr){
 	sha256((const unsigned char*)data,len,*outptr_ptr);
 	if(!*outptr_ptr) {
 		printf("cannot copy hash value to outptr_ptr");
+		free(outptr_ptr);
 		return;
 	}
 }
@@ -216,6 +218,7 @@ void jsha_getobj(const char *data, size_t len, shacontext **contextptr_ptr){
 		printf("data cannot be NULL\n");
 		return;
 	}
+	
 	*contextptr_ptr=(shacontext*)malloc(sizeof(shacontext)+sizeof(char)*(len+1));
 	if(*contextptr_ptr==NULL){
 		printf("you must pass a non-NULL pointer address to jsha_hash\n");	
@@ -226,16 +229,18 @@ void jsha_getobj(const char *data, size_t len, shacontext **contextptr_ptr){
 	jsha_hash(data,len,&out_data);
 	memcpy((*contextptr_ptr)->hash,out_data,32);
 
-	char* bindata;
-	jsha_getbin(out_data,NULL,&bindata);
+	char* bindata=jsha_getbin(out_data,0x00);
 	memcpy((*contextptr_ptr)->bin,bindata,257);
 
-	char* hexdata;
-	jsha_gethex(out_data,NULL,&hexdata);
+	char* hexdata=jsha_gethex(out_data,0x00);
 	memcpy((*contextptr_ptr)->hex,hexdata,65);
 
 	memcpy((*contextptr_ptr)->raw,data,len);
-	(*contextptr_ptr)->raw[65]='\0';
+	(*contextptr_ptr)->raw[len]='\0';
+	
+	if(out_data) free(out_data);
+	if(bindata) free(bindata);
+	if(hexdata) free(hexdata);
 }
 
 void jsha_printobj(shacontext *context){
@@ -250,57 +255,60 @@ char* jsha_getjson(shacontext *context){
 	return json;
 }
 
-
-void jsha_getbin(const unsigned char *hash,char* split_tag,char **binptr_ptr){
+/*
+ * 不想用分隔符的话,请将split_tag置为0x00
+ * 需要手动释放内存！！！
+ */
+char* jsha_getbin(const unsigned char *hash,char split_tag){
 	int istag_mode=0;
-	char tag=' ';
-	if(split_tag!=NULL) {
-		tag=split_tag[0];
-		istag_mode=1;
-	}
-	int size=istag_mode?32*8+8+1:32*8+1;
-	*binptr_ptr=(char*)malloc(size);
-	if(*binptr_ptr==NULL) return;
+	if(split_tag>0x00) istag_mode=1;
+	
+	
+	int size=istag_mode?32*8+32+1:32*8+1;
+	char* binptr_ptr=(char*)malloc(size);
+	if(binptr_ptr==NULL) return NULL;
 
+	int cnt_j=istag_mode?9:8;
 	for(int i=0;i<32;i++){
-		for(int j=0;j<8;j++){
-			(*binptr_ptr)[i*8+j]=(hash[i]>>(7-j)&1)?'1':'0';
+		for(int j=0;j<cnt_j;j++){
+				binptr_ptr[i*cnt_j+j]=(hash[i]>>(7-j)&1)?'1':'0';
+				//为什么要小于247?因为最后一轮的8位数并不需要添加split_tag了。故小于31*8=248即可
+				if(j==8&&istag_mode&&j*i<248) binptr_ptr[i*cnt_j+j]=split_tag;
 		}
-		
-		if(i>0&&istag_mode)
-			(*binptr_ptr)[i*8]=tag;
-		
 	}
-	(*binptr_ptr)[size-1]='\0';
+	binptr_ptr[size-1]='\0';
+	return binptr_ptr;
 }
 
-
-void jsha_gethex(const unsigned char* hash,char* split_tag,char** hexptr_ptr){
+/*
+ * 不想用分隔符的话,请将split_tag置为0x00
+ * 需要手动释放内存！
+ */
+char* jsha_gethex(const unsigned char* hash,char split_tag){
 	int istag_mode=0;
-	char tag=' ';
-	if(split_tag!=NULL){
-		istag_mode=1;
-		tag=split_tag[0];
-	}
+	if(split_tag>0x00) istag_mode=1;
 
 	//因为hashptr_ptr指向char*指针地址,所以*hashptr_ptr实际上是一个char数组指针
 	//即 hashptr_ptr存储了一个主函数中char* hashes的指针地址,这样就可以对其进行操作了
 	//故可以对一个char数组指针分配内存
 	int size=istag_mode?65+31:65;
-	*hexptr_ptr=(char*)malloc(size);
-	if(hexptr_ptr==NULL) return;
+	char* hexptr_ptr=malloc(size);
+	if(hexptr_ptr==NULL) return NULL;
+	
+	char s[4]={0};
 	for(int i=0;i<32;i++){
 		if(istag_mode){
-			char s[4];
-			sprintf(s,"%02x%c", hash[i],tag);
-			memcpy((*hexptr_ptr)+i*3,s,3);
+			sprintf(s,"%02x%c", hash[i],split_tag);
+			memcpy(hexptr_ptr+i*3,s,3);
 		}
 		else{ 
-			char s[3];
 			sprintf(s,"%02x",hash[i]);
-			memcpy((*hexptr_ptr)+i*2,s,2);
+			memcpy(hexptr_ptr+i*2,s,2);
+			memset(s,0,4);
 		}
 	}
+	hexptr_ptr[size-1]='\0';
+	return hexptr_ptr;
 }
 
 /**
@@ -342,36 +350,54 @@ void jsha_print(const unsigned char* out,int fmt_mode,char* split_tag){
 }
 
 void jsha_test(){
+	//--PASS jsha_hash--/
 	const char h[]="hello";
-	unsigned char* out;
+	unsigned char* out=NULL;
 	jsha_hash(h,strlen(h), &out);
 	unsigned int index = *((unsigned int*)out);
-	printf("hash_index:%d\n",index%100);
+	printf("hash_index:%d\n",index%100);	
+	if(out) free(out);
+	//--jsha_hash--//
 	
-	char* hashes=NULL;
-	char tagh=' ';
-	jsha_gethex(out,&tagh,&hashes);
-	if(hashes) printf("hash_hexfmt: %s\n",hashes);
+	//--PASS jsha_gethex--/
+	const char lh[]="hello";
+	unsigned char* lout=NULL;
+	jsha_hash(lh,strlen(lh), &lout);
+	char* hashes=jsha_gethex(lout,0);
 	
-	char tag='.';
-	jsha_print(out,1,&tag);
-
-
-	shacontext* context;
-	jsha_getobj(h,strlen(h),&context);
+	printf("hash_hexfmt: %s\n",hashes);	
+	if(lout) free(lout);
+	if(hashes) free(hashes);
+	//--jsha_gethex--//
+	
+	//--PASS jsha_print--/
+	unsigned char* pout=NULL;
+	jsha_hash("hello",strlen("hello"),&pout);
+	jsha_print(pout,1,".");
+	if(pout) free(pout);
+	//--jsha_print--//
+	
+	//--PASS Sha256Context---//
+	shacontext* context=NULL;
+	jsha_getobj("hello",strlen("hello"),&context);
 	jsha_printobj(context);
 	printf("\033[0;32m%s\n\033[0m",jsha_getjson(context));
+	if(context) free(context);
+	//--PASS Sha256Context---//
 	
-	char* bins;
-	char bint=' ';
-	jsha_getbin(out,&bint,&bins);
+	//--PASS jsha_getbin--/
+	unsigned char* hout=NULL;
+	jsha_hash("hello",strlen("hello"),&hout);
+	char* bins=jsha_getbin(hout,0x00);
 	printf("hash_binfmt: %s\n",bins);
+	if(hout) free(hout);
+	if(bins) free(bins);
+	//--jsha_getbin--//
 }
 
-/*
- *int main(void){
+
+/*int main(void){
 	jsha_test();
 	return 0;
- }
- */
+}*/
 

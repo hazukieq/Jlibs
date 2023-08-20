@@ -36,7 +36,10 @@ void jque_empty(Jque* jq);
 void jque_release(Jque* jq);
 
 void jque_push(Jque* jq,void* data,int size);
+
+//记得调用jque_pop_free释放内存!!!
 void* jque_pop(Jque* jq);
+void jque_pop_free(void* pop_obj);
 
 void jque_test();
 #endif
