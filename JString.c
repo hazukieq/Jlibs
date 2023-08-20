@@ -1,4 +1,5 @@
 #include "JString.h"
+#include <sys/types.h>
 /**---内部宏---*/
 //输出红色警告信息
 //int转char
@@ -21,8 +22,10 @@
 //获取转换指针
 #define vtr(type,var,val) type* var=(type*) val
 
-//根据结构成员指针地址找到结构体首位地址
-//因为结构体的内存是动态分配的，所以我们可以可以通过结构体成员buf减去结构体占用的空间大小来得到结构体的首位地址，即结构体指针
+/* 根据结构成员指针地址找到结构体首位地址
+ * 因为结构体的内存是动态分配的
+ * 所以可以通过结构体成员buf减去结构体占用的空间大小来得到结构体的首位地址，即结构体指针
+ */
 #define jptr(name) ((JString*)(name-(sizeof(JString)))) 
 #define vjptr(name,val) JString* val=jptr(name)
 
@@ -37,7 +40,7 @@
  * 内部方法的参数全都假定不为空！！！如果出错则肯定是公共方法调用内部方法时传入了含空的参数！！！
  */
 
-//经典kmp算法
+//计算经典kmp算法之子缀数组
 static void KmpNext(const char* p,int* next){
         int pLen=strlen(p);
         int k=-1;
@@ -45,9 +48,13 @@ static void KmpNext(const char* p,int* next){
         next[0]=-1;
         //最后一位不需要算
         while(j<pLen-1){
+		//判断k是否为 -1 或前字符等于后字符
+		//不等则取出next[k]的回溯索引,重新判断
                 if(k==-1||p[j]==p[k]){
-                        j++,k++;
-
+			k++,j++;
+			//检查当前项是否等于前项的回溯索引(next[i]存储的索引值)
+			//不等则将当前项的前项索引位置存储到next数组
+			//否则当前项的回溯索引等于前项的回溯索引
                         if(next[j]!=next[k])
                                 next[j]=k;
                         else next[j]=next[k];
@@ -340,7 +347,6 @@ static JStr __ansi_subs(JStr jc,int jclen,int start,int end){
         return new_jc;
 }
 
-//不破坏原有字符内容
 static JStr __utf_subs(JStr jc,int jclen,int start,int end){
          /* 
          * guess the enconding of the characters.
@@ -405,7 +411,6 @@ cleanup:
         return NULL;
 }
 
-//不会破坏原有字符
 static JStr __ansi_reverse(JStr jc,int jclen,int start,int end){  
         //调用截取函数对字符截取，然后再进行翻转
         JStr neo_=__ansi_subs(jc,jclen,start,end);
@@ -423,7 +428,6 @@ static JStr __ansi_reverse(JStr jc,int jclen,int start,int end){
         return neo_;
 }
 
-//不会破坏原有字符
 static JStr __utf_reverse(JStr jc,int jclen,int start,int end){ 
         JStr neo_=__utf_subs(jc,jclen,start,end);
         JString* hr=jptr(neo_);
@@ -451,7 +455,6 @@ clearup:
         return NULL;
 }
 
-//不会破坏原有字符
 //布尔值比较
 static Boolean __str_equal(const char* s1,int s1len,const char* s2,int s2len){
         int check=TRUE;
@@ -464,7 +467,6 @@ static Boolean __str_equal(const char* s1,int s1len,const char* s2,int s2len){
         return check;
 }
 
-//不会破坏原有字符
 //推荐内部函数调用方法，该函数会对传入参数进行判空
 static Boolean __equal(const char* s1,int s1len,const char* s2,int s2len){
         if(s1==NULL||s2==NULL) return FALSE;
@@ -473,7 +475,6 @@ static Boolean __equal(const char* s1,int s1len,const char* s2,int s2len){
         return __str_equal(s1,s1len,s2,s2len);
 }
 
-//不会破坏原有字符
 //布尔值比较
 static Boolean __str_starts(const JStr jc,const char* signals,int offset){ 
         /*
@@ -497,7 +498,6 @@ static Boolean __str_starts(const JStr jc,const char* signals,int offset){
         return check;
 }
 
-//不会破坏原有字符
 //布尔值比较
 static Boolean __str_ends(const JStr jc,int jclen,const char* signals,int offset){
         //若匹配字符长度大于待匹配字符,则返回
@@ -523,12 +523,13 @@ static Boolean __str_ends(const JStr jc,int jclen,const char* signals,int offset
         return check;
 }
 
-//一个字符被替换为同一个字符: a->b
-//会改变原有字符内容！！
-//复制命中字符前片段到暂存字符串中
-//替换命中字符，其开始索引=上一段命中字符前片段结束索引(总长度)+命中字符前片段长度
-//暂存字符串补上原文字符后半段
-//失败时均返回原来字符,不会修改原来字符！
+/*
+ * 一个字符被替换为同一个字符: a->b
+ * 复制命中字符前片段到暂存字符串中
+ * 替换命中字符，其开始索引=上一段命中字符前片段结束索引(总长度)+命中字符前片段长度
+ * 暂存字符串补上原文字符后半段
+ * 成功返回替换后字符,失败时均返回原来字符
+ */
 static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const char* new_jc){
         int oldlen=strlen(old_jc);
         int newlen=strlen(new_jc);
@@ -548,8 +549,8 @@ static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const ch
                 JStr prev=__ansi_subs(origin,originlen,lastEnd,hits[i]);
                 
                 logc("prev<%s>",prev);
-                tmp=__str_cat(tmp,jptr(tmp)->len,prev,jptr(prev)->len);
-                tmp=__str_cat(tmp,jptr(tmp)->len,new_jc,newlen);
+                __str_cats(&tmp,jptr(tmp)->len,prev,jptr(prev)->len);
+                __str_cats(&tmp,jptr(tmp)->len,new_jc,newlen);
                 jstr_free(prev);
                 prev=NULL;
                 lastEnd=hits[i]+oldlen;
@@ -557,29 +558,24 @@ static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const ch
         
         if(lastEnd<originlen){
                 JStr last_snis=__ansi_subs(origin,originlen,lastEnd,-1);
-                tmp=__str_cat(tmp,jptr(tmp)->len,last_snis,jptr(last_snis)->len);
+                __str_cats(&tmp,jptr(tmp)->len,last_snis,jptr(last_snis)->len);
                 jstr_free(last_snis);
                 last_snis=NULL;
         }
 
-        if(tmp!=NULL){
-                jstr_free(origin);
-                origin=NULL;
-                origin=jstr_newlen(tmp,jptr(tmp)->len);
-                jstr_free(tmp);
-                tmp=NULL;
-        }
-
+        
         free(hits);
-        return origin;
+	if(tmp!=NULL) return tmp;
+        return jstr_new(origin);
 }
 
-//多个字符被替换为同一个字符: abce->f
-//会改变原有字符内容！！
-//复制命中字符前片段到暂存字符串中
-//替换命中字符，其开始索引=上一段命中字符前片段结束索引(总长度)+命中字符前片段长度
-//暂存字符串补上原文字符后半段
-//失败时均返回原来字符,不会修改原来字符！
+/**
+ * 多个字符被替换为同一个字符: abce->f
+ * 复制命中字符前片段到暂存字符串中
+ * 替换命中字符，其开始索引=上一段命中字符前片段结束索引(总长度)+命中字符前片段长度
+ * 暂存字符串补上原文字符后半段
+ * 失败时均返回原来字符,不会修改原来字符！
+ */
 static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old_jcs_len,const char* new_jc){
         int newlen=strlen(new_jc);
 
@@ -606,8 +602,8 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                         //命中字符前段
                         JStr prev=__ansi_subs(copy_origin,jptr(copy_origin)->len,lastEnd,hits[i]);
                         //逐个字符串拼接(前段+新字符)
-                        tmps=__str_cat(tmps,jptr(tmps)->len,prev,strlen(prev));
-                        tmps=__str_cat(tmps,jptr(tmps)->len,new_jc,newlen);
+                        __str_cats(&tmps,jptr(tmps)->len,prev,strlen(prev));
+                        __str_cats(&tmps,jptr(tmps)->len,new_jc,newlen);
 
                         jstr_free(prev);
                         prev=NULL;
@@ -617,13 +613,14 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                 if(lastEnd<jptr(copy_origin)->len){
                         JStr last_sni=__ansi_subs(copy_origin,
 					jptr(copy_origin)->len,lastEnd,-1);
-                        tmps=__str_cat(tmps,jptr(tmps)->len,last_sni,strlen(last_sni));
+                        __str_cats(&tmps,jptr(tmps)->len,last_sni,strlen(last_sni));
                         jstr_free(last_sni);
                         last_sni=NULL;
                 }
           	
-		if(copy_origin) jstr_free(copy_origin);
-                copy_origin=jstr_newlen(tmps,jptr(tmps)->len);
+		if(copy_origin)
+			jstr_free(copy_origin);
+		copy_origin=jstr_newlen(tmps,jptr(tmps)->len);
                 jstr_free(tmps);
                 
 		tmps=NULL;
@@ -633,115 +630,93 @@ static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old
                 hits=NULL;
         }
 
-        if(copy_origin){
-                jstr_free(origin);
-                origin=jstr_newlen(copy_origin,jptr(copy_origin)->len);
+	if(copy_origin){
+		JStr new=jstr_new(copy_origin);
                 jstr_free(copy_origin);
                 copy_origin=NULL;
+		return new;
         }
-	/*if(copy_origin){
-		loge("%s",copy_origin);
-		jstr_free(copy_origin);
-	}*/
-        return origin;
+	return jstr_new(origin);
 
 cleanup:
         loge("error...hitCoutns or hits[] is NULL,so return origin.");
-        if(copy_origin!=NULL) jstr_free(copy_origin);
-        return origin;
+        if(copy_origin) jstr_free(copy_origin);
+        return jstr_new(origin);
 }
 
-
-//会改变原有字符！！
 //合併单个字符:a,b->ab
-static JStr __str_cat(JStr old_jc,int old_len,const void* t,int len){
-        if(jptr(old_jc)->free<len){
-		old_jc=__str_onBaseMakeMem(old_jc,len);
-		if(old_jc==NULL) return old_jc;
+static void __str_cats(JStr* old_jc,int old_len,const void* t,int len){
+        if(jptr(*old_jc)->free<len){
+		*old_jc=__str_onBaseMakeMem(*old_jc,len);
+		if(*old_jc==NULL) return;
 	}
         
-	memcpy(old_jc+old_len,t,len);
-        __str_addEndMark(old_jc,old_len+len);
+	memcpy(*old_jc+old_len,t,len);
+        __str_addEndMark(*old_jc,old_len+len);
 
-        vjptr(old_jc,jstr);
+        vjptr(*old_jc,jstr);
         jstr->len=len+old_len;
-        jstr->free=jstr->free-len;
-        return old_jc;
+        jstr->free=jstr->free-len-old_len;
 }
+
 //合併多个字符:a,b,c,d->abcd
 JStr __str_merge(const char **carrs, int len){
         JStr target=jstr_newempty();
         for(int i=0;i<len;i++){
-                target=__str_cat(target,jptr(target)->len,carrs[i],strlen(carrs[i]));
+                __str_cats(&target,jptr(target)->len,carrs[i],strlen(carrs[i]));
         }
         return target;
 }
 
 //会改变原有字符！！
-static JStr __str_reset(JStr jc, const char *t){
+static JStr __str_reset(JStr jc, const char* t){
         int len=strlen(t);
-        jc=__str_overwriteMakeMem(jc,len);
-        if(jc==NULL) return jc;
+        JStr new_jc=jstr_newempty();
+	new_jc=__str_overwriteMakeMem(new_jc,len);
+        if(new_jc==NULL){
+		jstr_free(new_jc);
+		return jstr_new(jc);
+	}
 
-        memcpy(jc,t,len);
-        __str_addEndMark(jc,len);
-        return jc;
+        memcpy(new_jc,t,len);
+        __str_addEndMark(new_jc,len);
+        return new_jc;
 }
 
 
 
-//会破坏原有字符!
-//startIndex 不是字节索引，是一个字符索引
+//startIndex 不是字节索引，是一个 Utf-8字符索引!!!
 static JStr __str_insert(JStr jc,const char* insertJc,int startIndex){
-
         //另一种方法，算出插入后的字符总长度，而后移动插入点后的字符以腾出足够的空间
         //插入点上的字符不会被覆盖，只会往左移一位以保持原始字符原貌
-        int jclen=jptr(jc)->len;
+        int jclen=jptr(jc)->len;//原来长度
         int insertJclen=strlen(insertJc);
-
+	
+	//计算出字符串对应的UTF字符长度
         List* alls=__utf_getUtfobjs(jc,jptr(jc)->len);
-        struct __Utfobj* obj=list_get(alls,startIndex);
+        struct __Utfobj* startIndexObj=list_get(alls,startIndex);//获取插入点处的UTF字符
         
+	//总长度(原长度+插入长度)
         int total=jclen+insertJclen;
-        
-	jc=__str_overwriteMakeMem(jc,total);
-        if(jc==NULL) return NULL;
+        //创建一个新的对象
+	JStr new_jc=jstr_new(jc);
+	new_jc=__str_overwriteMakeMem(new_jc,total);
+        if(new_jc==NULL){
+		loge("try to allocated memory for new_jc failed...");
+		jstr_free(new_jc);
+		return jstr_new(jc);
+	}
         
 	//将插入点后的字符后移，腾出的长度等于insertJclen
 	//jclen-obj->end+1,之所以+1是因为(jclen-obj->end)是第一个utf字符的最后一个字节下标,并不是插入点后字节的下标
-        for(int i=0;i<jclen-obj->end+1;i++){
-                unsigned char tmp=jc[jclen-i];
-                jc[total-i]=tmp;
+        int moveLen=jclen-startIndexObj->end+1;
+	for(int i=0;i<moveLen;i++){
+                unsigned char tmp=new_jc[jclen-i];
+                new_jc[total-i]=tmp;
         }
-        memcpy(jc+obj->end,insertJc,insertJclen);
+        memcpy(new_jc+startIndexObj->end,insertJc,insertJclen);
 	list_release(alls);
-	return jc;
-        /*
-        //插入点上的字符前移
-        //插入点上的字符不算入前后片段中,即保持原始字符原貌
-        JStr prev_snippet=__utf_subs(jc,jptr(jc)->len,0,startIndex);
-        int endIndex=startIndex;
-        JStr after_snippet=__utf_subs(jc,jptr(jc)->len,endIndex,-1);
-        
-        int insertlen=strlen(insertJc);
-        int prevlen=jptr(prev_snippet)->len;
-        int afterlen=jptr(after_snippet)->len;
-
-        int total=prevlen+afterlen+insertlen;
-        jc=__str_overwriteMakeMem(jc,total);
-        if(jc==NULL) return NULL;
-
-        if(prevlen>0){
-                memcpy(jc,prev_snippet,prevlen);
-        }
-
-        memcpy(jc+prevlen,insertJc,insertlen);
-        memcpy(jc+prevlen+insertlen,after_snippet,afterlen);
-        __str_addEndMark(jc,total);
-
-        jstr_free(prev_snippet);
-        jstr_free(after_snippet);
-        return jc;*/
+	return new_jc;
 }
 
 static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs,int signarrlens,int* resultlen){
@@ -1454,8 +1429,7 @@ JStr jstr_reset(JStr old_jc, const char* new_jc){
                 return NULL;
         }
         assertJc(old_jc,NULL)
-        old_jc=__str_reset(old_jc,new_jc);
-        return old_jc;
+        return __str_reset(old_jc,new_jc);
 }
 
 JStr jstr_displaces(JStr origin, const char* old_jc,const char* new_jc){
@@ -1467,8 +1441,7 @@ JStr jstr_displaces(JStr origin, const char* old_jc,const char* new_jc){
         }
         assertJc(origin,NULL); 
         if(strlen(old_jc)>jptr(origin)->len) return NULL;
-        origin=__str_displace(origin,jptr(origin)->len,old_jc,new_jc);
-        return origin;
+        return __str_displace(origin,jptr(origin)->len,old_jc,new_jc);
 }
 
 //建议调用宏函数jstr_replace(texts,new_jc,...)
@@ -1479,7 +1452,7 @@ JStr jstr_replaces(JStr origin, const char** old_jcs,int old_jcs_len,const char*
                 loge("old_jc<%s> or old_jcs,new_jc<%s>",old_jcs[0],new_jc);
                 return NULL;
         }
-        assertJc(origin,NULL); 
+        assertJc(origin,NULL);
         return __str_replace(origin,jptr(origin)->len,old_jcs,old_jcs_len,new_jc);
 }
 
@@ -1491,18 +1464,16 @@ JStr jstr_insert(JStr jc,const char* insertJc,int startIndex){
                 return NULL;
         }
         assertJc(jc,NULL)
-        jc=__str_insert(jc,insertJc,startIndex);
-        return jc;
+        return __str_insert(jc,insertJc,startIndex);
 }
 
-JStr jstr_cat(JStr jc1,const char* jc2){
+void jstr_cat(JStr jc1,const char* jc2){
         if(jc1==NULL||jc2==NULL) {
                 loge("jc1<%s> or jc2<%s> is null",jc1,jc2);
-                return NULL;
+                return;
         }
-        assertJc(jc1,NULL);
-        jc1=__str_cat(jc1,jptr(jc1)->len,jc2,strlen(jc2));
-        return jc1;
+        assertJc(jc1,);
+        __str_cats(&jc1,jptr(jc1)->len,jc2,strlen(jc2));
 }
 
 //推荐使用宏函数jstr_merge
@@ -1558,12 +1529,20 @@ void jstr_free(JStr jc){
         jstr=NULL;
 }
 
+void jstr_freeAll(JStr* alls,int total){
+	for(int i=0;i<total;i++){
+		assertJc(alls[i],)
+		jstr_free(alls[i]);
+	}
+}
+
 void jstr_frees(JStr* jrrs,int len){
         if(!jrrs) return;
         while(len--)
                 jstr_free(jrrs[len]);
         free(jrrs);
 }
+
 //数字转二进制字符串
 JStr jstr_int2bin(int number){
         return __str_int2bin(number);
@@ -1596,8 +1575,8 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag){
         for(int i=0;i<jptr(jc)->len;i++){
                 if(i%n==0){
                         prev=jstr_subsAnsi(jc,lastEnd,i);
-                        tmp=jstr_cat(tmp,prev);
-                        tmp=jstr_cat(tmp,tag);
+                        __str_cats(&tmp,jptr(tmp)->len,prev,jptr(prev)->len);
+                        __str_cats(&tmp,jptr(tmp)->len,tag,jptr(tag)->len);
                         jstr_free(prev);
 			prev=NULL;
 			lastEnd=i;
@@ -1606,7 +1585,7 @@ JStr jstr_slicadd(JStr jc,int n,char* addTag){
 
         if(lastEnd<jptr(jc)->len){
                 prev=jstr_subsAnsi(jc,lastEnd,-1);
-                tmp=jstr_cat(tmp,prev);
+                __str_cats(&tmp,jptr(tmp)->len,prev,jptr(prev)->len);
         }
 
         jstr_free(prev);
@@ -1645,24 +1624,21 @@ void jstr_test(){
         
         int record=0;
         while(fgets(line,1024,f)){
-                longexts=jstr_cat(longexts,line);
+                jstr_cat(longexts,line);
         }
         fclose(f);	
         logi(longexts,s,"");
         jstr_free(longexts);	
 	//---jstr_cat---/
 	
-	//PASS--jstr_replace---/
-	char* old_jc="系";
-	char* old_jcs[1];
-	old_jcs[0]=old_jc;
-	char* new_jc="的";
-	JStr rlongexts=jstr_new("he咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？");
-        rlongexts=jstr_replace(rlongexts,"是","系","he");
-	logc("\n原句子: 系咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？\n替换后: %s",rlongexts);
-	jstr_free(rlongexts);
-	//---jstr_replace--/
 	
+	//PASS--jstr_replace---/
+	JStr plongexts=jstr_new("he咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？");
+        JStr rlongexts=jstr_replace(plongexts,"是","系","he");
+	logc("\n原句子: 系咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？\n替换后: %s",rlongexts);
+	jstr_auto(plongexts,rlongexts);
+	//---jstr_replace--/
+
         //PASS---jstr_slit--/
         JStr examples=jstr_new("name:hello,world\nage:20;class:2041;tel:19914834737|email:263@hazu.com");
        
@@ -1684,24 +1660,31 @@ void jstr_test(){
         jstr_frees(jss,longlens);
 	jstr_free(s);
 	//---jstr_splits--/	
-		
-        //---jstr_insert---/
-        JStr j1=jstr_new("吾系客家人");
-        j1=jstr_insert(j1,",好食客家菜！",-1);
-        logi(j1,s,"");
-        jstr_free(j1);
-	//---jstr_insert---/
 	
-        //PASS---jstr_contains&&jstr_displace--/
+	//---PASS jstr_reset--/
+	JStr zs=jstr_new("hello");
+	JStr cs=jstr_reset(zs,"hello,world!");
+	logc("%s",cs);
+	jstr_auto(zs,cs);
+	//---jstr_reset--/
+
+	//---jstr_insert---/
+        JStr j1=jstr_new("吾系客家人");
+        JStr j2=jstr_insert(j1,",好食客家菜！",-1);
+        logi(j2,s,"");
+	jstr_auto(j1,j2);
+	//---jstr_insert---/
+ 
+	//PASS---jstr_contains&&jstr_displace--/
         JStr distr=jstr_new("吾系客家人，好食客家菜！客家人系真勤劳个人呐！Installation packages for Audacity are provided by many GNU/Linux and Unix-like distributions. Use the distribution’s usual package manager (where available) to install Audacity. If necessary, you could try searching for an appropriate Audacity package on rpmseek.");
         
         logi(jstr_contains(distr,"Audacity"),d,"");
-
-        distr=jstr_displaces(distr,"Audacity","**");
-        logi(distr,s,"");
-        jstr_free(distr);
+	
+        JStr ps=jstr_displaces(distr,"Audacity","**");
+        logi(ps,s,"");
+        jstr_auto(distr,ps);
 	//---jstr_displace--/
-        
+
          
         //PASS---jstr_toint---/
         JStr jci=jstr_new("12345678");
@@ -1787,4 +1770,17 @@ void jstr_test(){
 	jstr_free(jhexp);
 	//---jstr_int2hex&jstr_slicadd--/
 }
+
+
+int main(){
+	//--PASS __str_cats---/
+	JStr hello=jstr_new("hello");
+	__str_cats(&hello,strlen(hello),",world!",strlen(",world!"));
+	logc("hello=%s",hello);
+	jstr_auto(hello);
+	//--__str_cats--/	
+	return 0;
+}
+
+
 

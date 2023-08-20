@@ -68,6 +68,7 @@ void list_insert(List* list,void* obj,int obj_size,int pos);
 //在尾部添加元素
 void list_add(List* list,void* obj,int obj_size);
 
+
 //修改元素值
 //void list_setObj(List* list,void* obj,int obj_size);
 void list_set(List*  list,void* obj,int obj_size,int pos);
@@ -109,4 +110,5 @@ int list_indexof(const List* list,Node* node);
 
 void list_reverse(List* list);
 void list_merge(List* list,List* l);
+
 #endif

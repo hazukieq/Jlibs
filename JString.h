@@ -6,13 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define __ARRAY_EXPAND(type,...) (type[]){__VA_ARGS__},sizeof((type[]){__VA_ARGS__})/sizeof(type)
 #define __regexs(...) (const char*[]){__VA_ARGS__},sizeof((const char*[]){__VA_ARGS__})/sizeof(char*)
 
 /**
  * const JStr texts,int* resultlen,...(const char** signal_arr,int signal_arr_len)
  */
 #define jstr_slit(texts,resultlen,...) jstr_slits(texts,__regexs(__VA_ARGS__),resultlen)
-
 /**
  * texts 字符串
  * new_jc 新字符串
@@ -22,8 +22,11 @@
 
 #define jstr_merge(...) jstr_merges(__regexs(__VA_ARGS__))
 
-#define jstr_str2struct(strs,members...){\
-}
+/**
+ * 自动释放所有JStr实例内存
+ * ...: 实例化变量 
+ */
+#define jstr_auto(...) jstr_freeAll(__ARRAY_EXPAND(JStr,__VA_ARGS__))
 
 struct __str{
         //判断是否属于字符串
@@ -86,8 +89,9 @@ static Boolean __str_ends(const JStr jc,int jclen,const char* signals,int offset
 //实现难度比较大的函数
 static JStr __str_replace(JStr origin,int originlen,const char** old_jcs,int old_jcs_len,const char* new_jc);
 static JStr __str_displace(JStr origin,int originlen,const char* old_jc,const char* new_jc);
-static JStr __str_cat(JStr jc,int jclen,const void* t,int len);
+static void __str_cats(JStr* old_jc,int old_len,const void* t,int len);
 static JStr __str_merge(const char** carrs,int len);
+
 static JStr __str_reset(JStr jc,const char* t);
 static JStr __str_insert(JStr jc,const char* insertJc,int startIndex);
 static JStr* __str_splits(const JStr texts,int textslen,const char* signals,int* resultlen);
@@ -110,14 +114,15 @@ JStr jstr_autofit(JStr jc);
 
 int jstr_len(const JStr jc);
 
-//new_str copy to old_str,please note that this method will overwrite the old one completely.
+/**
+ * 注意不能直接赋值给origin,如 origin=jstr_reset(origin...),否则会出现内存泄漏!!!
+ */
 JStr jstr_reset(JStr old_jc,const char* t);
 JStr jstr_copy(const JStr jc);
 int jstr_isNone(const JStr jc);
 char jstr_charAt(const JStr jc,int index);
 
-//截取字符方法
-//不会破坏原字符
+/*--截取字符方法,不会破坏原字符--*/
 JStr jstr_subAll(const JStr jc,int startIndex);
 JStr jstr_subs(const JStr jc,int startIndex, int endIndex);
 JStr jstr_subsAnsi(const JStr jc,int startIndex, int endIndex);
@@ -126,7 +131,7 @@ JStr jstr_subsAnsi(const JStr jc,int startIndex, int endIndex);
 JStr jstr_reverse(const JStr jc);
 JStr jstr_subverse(const JStr jc,int start,int end);
 
-
+//判断是否等价
 int jstr_equal(const JStr jc1,const JStr jc2);
 
 
@@ -142,26 +147,37 @@ int jstr_lastIndexOf(const JStr origin,const char* signals);
 int jstr_contains(const JStr origin,const char* signals);
 
 /*--高难度函数--*/
-//原路返回jc参数,所以你只能赋值给jc
+/**
+ * 注意不能直接赋值给origin,如 origin=jstr_displace(origin...),否则会出现内存泄漏!!!
+ */
 JStr jstr_displaces(JStr origin,const char* old_jc,const char* new_jc);
 
-//原路返回jc参数,所以你只能赋值给jc
+/**
+ * 注意不能直接赋值给origin,如 origin=jstr_replaces(origin...),否则会出现内存泄漏!!!
+ * 建议调用 jstr_replace 宏!!
+ */
 JStr jstr_replaces(JStr origin,const char** old_jcs,int old_jcs_len,const char* new_jc);
 
-//原路返回jc参数,所以你只能赋值给jc
+/**
+ * 注意不能直接赋值给origin,如 origin=jstr_insert(origin...),否则会出现内存泄漏!!!
+ */
 JStr jstr_insert(JStr jc,const char* insertJc,int startIndex);
 
-//原路返回jc参数,所以你只能赋值给jc1
-JStr jstr_cat(JStr jc1,const char* jc2);
+/**
+ * 注意不能直接赋值给origin,如 origin=jstr_cat(origin...),否则会出现内存泄漏!!!
+ */
+void jstr_cat(JStr jc1,const char* jc2);
 
 JStr jstr_merges(const char** carrs,int len);
 
-
+/*--字符切割--*/
 JStr* jstr_splits(const JStr texts,const char* signals,int* resultlen);
 JStr* jstr_slits(const JStr texts,const char** signal_arr,int signal_arr_len,int* resultlen);
 
 void jstr_free(JStr jc);
 void jstr_frees(JStr* jarrs,int jarrslen);
+//自动释放所有JStr实例内存,建议调用宏变量jstr_auto
+void jstr_freeAll(JStr* alls,int total);
 
 /*--字符转数字--*/
 int jstr_str2num(const JStr jc);
@@ -183,6 +199,7 @@ JStr jstr_int2hex(int n);
 /**---字符串转二进制---*/
 static JStr __str_str2bin(const char* jc,int ispad,char pad_tag);
 JStr jstr_str2bin(const char* jc,int ispad,char pad_tag);
+
 /*---测试方法---*/
 void jstr_test();
 #endif
