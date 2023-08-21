@@ -70,7 +70,22 @@ void* jstack_top(JStack* jst){
         return jst->top->data;
 }
 
-void* jstack_pop(JStack* jst){
+void jstack_pop(JStack* jst){
+        if(jst==NULL||jst->len==0) return;
+
+        JNode* current=jst->top;
+        if(current==NULL) return;
+
+        JNode* next=current->next;
+	
+	free(current->data);
+        free(current);
+        
+	jst->top=next;
+        jst->len--;
+}
+
+void* jstack_popobj(JStack* jst){
         if(jst==NULL||jst->len==0) return NULL;
 
         JNode* current=jst->top;
@@ -89,8 +104,14 @@ void* jstack_pop(JStack* jst){
 
         return data;
 }
-void jstack_pop_free(void *void_obj){
+void jstack_popobj_free(void *void_obj){
 	if(void_obj) free(void_obj);
+}
+void jstack_pop_freeAll(void** alls,int len){
+	if(len==0) return;
+	for(int i=0;i<len;i++){
+		if(alls[i]) free(alls[i]);
+	}
 }
 
 //size包含字符结束标志\0,若使用strlen则请+1
@@ -145,6 +166,7 @@ void jstack_test(){
 	//--PASS jstack_push--/
 	//--PASS jstack_top--/
 	//--PASS jstack_pop--/
+	//--PASS jstack_popobj&jstack_popobj_free--/
 	//--PASS jstack_reverse--/
 	JStack* jst=jstack_init();
 
@@ -157,13 +179,14 @@ void jstack_test(){
         jstack_reverse(jst);
         printf("jstack_top->%d\n",*((int*)jstack_top(jst)));
 
-	void* s=jstack_pop(jst);
+	jstack_pop(jst);
+	void* s=jstack_popobj(jst);
         printf("_rever=> %s\n",(char*)s);
-        jstack_pop_free(s);
+        jstack_pop_auto(s);
 	jstack_release(jst);
 }
 
-int main(){
+/*int main(){
 	jstack_test();
 	return 0;
-}
+}*/

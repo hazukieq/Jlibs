@@ -727,8 +727,7 @@ static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs
         if(jarrs==NULL) goto cleanup;
 
         //将后面的标志全都替换为相同的一个标志，方便后续文本分割处理
-        JStr copy_texts=jstr_newlen(texts,textslen);
-	copy_texts=__str_replace(copy_texts, textslen,signarrs,signarrlens,signarrs[0]);
+        JStr copy_texts=__str_replace(texts, textslen,signarrs,signarrlens,signarrs[0]);
 
         int hitCounts=0;
         int* hits=__str_kmp_search(copy_texts,jptr(copy_texts)->len,signarrs[0],strlen(signarrs[0]),&hitCounts);
@@ -769,9 +768,8 @@ static JStr* __str_splitarrs(const JStr texts,int textslen,const char** signarrs
        return jarrs;
 cleanup:
         if(jarrs){
-		for(int i=0;i<matcheds;i++)
-			free(jarrs[i]);
-	       free(jarrs);
+		for(int i=0;i<matcheds;i++) free(jarrs[i]);
+	        free(jarrs);
        }
        if(copy_texts) free(copy_texts);
        if(hits) free(hits);
@@ -1608,9 +1606,9 @@ JStr jstr_str2bin(const char *jc, int ispad, char pad_tag){
 //测试范例
 void jstr_test(){ 
 	//PASS---jstr_init---/
-	//JStr j=jstr_new("hello,world!");
-	//printf("%s\n",j);
-	//jstr_free(j);
+	JStr j=jstr_new("hello,world!");
+	printf("%s\n",j);
+	jstr_free(j);
 	
 	
 	//PASS--jstr_cat--/
@@ -1633,7 +1631,7 @@ void jstr_test(){
 	//---jstr_cat---/
 	
 	
-	/*PASS--jstr_replace---/
+	//--PASS--jstr_replace---/
 	JStr plongexts=jstr_new("he咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？");
         JStr rlongexts=jstr_replace(plongexts,"是","系","he");
 	logc("\n原句子: 系咯,尔系哪人也？我系晓讲客家话个中国人，也系一只客家人哦。其系我个朋友，尔系哪埕个人也？系可可学校个无？\n替换后: %s",rlongexts);
@@ -1770,30 +1768,14 @@ void jstr_test(){
 	jstr_free(jhex);
 	jstr_free(jhexp);
 	//---jstr_int2hex&jstr_slicadd--/
-	*/
+	
 }
 
 
-int main(){
-	//jstr_test();	
-	char* file_path="/home/hazukie/cprojects/Jlibs/test/long.txt";
-        FILE* f=fopen(file_path,"r");
-        if(f==NULL){
-		logc("the file<%s> is not found,so failed.",file_path);
-		return 0;
-	}
-	char line[1024];
-        JStr longexts=jstr_newempty();
-        int record=0;
-        while(fgets(line,1024,f)){
-		jstr_cat(&longexts,line);
-        }
-        fclose(f);	
-        logi(longexts,s,"");
-        jstr_free(longexts);	
-
+/*int main(){
+	jstr_test();	
 	return 0;
-}
+}*/
 
 
 

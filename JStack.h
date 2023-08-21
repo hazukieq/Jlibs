@@ -9,6 +9,8 @@
 #define jstack_for(jstack,obj) \
         JNode* obj=NULL;\
         for(obj=jstack->top;obj!=NULL;obj=obj->next)
+#define EXPAND(...)  (void*[]){__VA_ARGS__},sizeof((void*[]){__VA_ARGS__})/sizeof(void*)
+#define jstack_pop_auto(...) jstack_pop_freeAll(EXPAND(__VA_ARGS__))
 
 struct _snode{
         void* data;
@@ -36,9 +38,11 @@ int jstack_len(JStack* jst);
 int jstack_isnone(JStack* jst);
 
 void* jstack_top(JStack* jst);
+void jstack_pop(JStack* jst);
 //记得手动释放内存!!
-void* jstack_pop(JStack* jst);
-void jstack_pop_free(void* void_obj);
+void* jstack_popobj(JStack* jst);
+void jstack_popobj_free(void* void_obj);
+void jstack_pop_freeAll(void** alls,int len);
 void jstack_push(JStack* jst,void* data,int size);
 
 void jstack_reverse(JStack* jst);

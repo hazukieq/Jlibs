@@ -149,8 +149,8 @@ void jque_test(){
 	jque_release(jq);
 }
 
-int main(void){
+/*int main(void){
         jque_test();
         return 0;
-}
+}*/
 

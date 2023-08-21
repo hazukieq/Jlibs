@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../JList.h"
+#include "JList.h"
 
 
 struct Lk{
@@ -9,9 +9,6 @@ struct Lk{
         char   telenum[12];
         int age;
 };
-
-
-
 void executeFn(void* obj){
         struct Lk* lq;
         lq=(struct Lk*)obj;
@@ -54,7 +51,6 @@ int main(void){
 
 
         //添加元素
-
         Node node={
                 .obj=&lk,
                 .size=sizeof(lk)
@@ -76,7 +72,9 @@ int main(void){
             }
 
         }
-        printf("\n");
+
+
+	printf("\n");
         printf("add one item into list\n");
         printf("removed item after len: %d\n",l->len);
         printf("\n");
@@ -88,9 +86,7 @@ int main(void){
 
         printf("\n");
        
-        list_merge(l,nel);
         list_reverse(l);
-
         printf("list_merge: len<%d>\n",l->len);
         list_for(l,ncur){
                 struct Lk* lq=(struct Lk*)ncur->obj;    
@@ -99,12 +95,17 @@ int main(void){
 
         }
 
-        //释放内存
-        list_empty(l);
-
-        printf("programme has ran successfully\n");
+	//有内存泄漏风险...
+        list_merge(nel,l);
+               
+	//释放内存
+	if(l) list_release(l);
+	if(nel) list_release(nel);
+        
+	printf("programme has ran successfully\n");
         printf("------END LinkedList test END-------\n");
         return 0;
 }
+
 
 

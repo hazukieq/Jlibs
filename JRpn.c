@@ -265,9 +265,9 @@ static char* calcExprs(const JStr jcs,int type){
                                         break;
                                 case '>':
                                         printf("operated_op<%s> has poped\n",(char*)jstack_top(OPTR));
-                                        x=(char*)jstack_pop(OPTR);
-                                        b=(char*)jstack_pop(OPND);
-                                        a=(char*)jstack_pop(OPND);
+                                        x=(char*)jstack_popobj(OPTR);
+                                        b=(char*)jstack_popobj(OPND);
+                                        a=(char*)jstack_popobj(OPND);
 
                                         if(a!=NULL&&b!=NULL&&x!=NULL){
                                                 JStr operated_result=type==0?operate(a,x[0],b):operateflt(a,x[0],b); 
@@ -301,7 +301,7 @@ static char* calcExprs(const JStr jcs,int type){
                 //printf("exprslen:%d\n\n",exprslen);
         }
        
-        x=(char*)jstack_pop(OPND);
+        x=(char*)jstack_popobj(OPND);
         if(jstack_isnone(OPND)==0){
                 printf("exprs have errors<%s>.\n",x);
                 x="error";
