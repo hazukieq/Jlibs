@@ -1,30 +1,35 @@
 #include "JQueue.h"
 
 static Jquenod* __jq_create_node(void* data,int size){
-        if(data==NULL||size==0) return NULL;
-        
+	if(data==NULL||size==0) return NULL;
+
 	Jquenod* jqnod=malloc(sizeof(Jquenod));
         if(jqnod==NULL) return NULL;
- 
+
         void* ndata=malloc(size);
-        if(ndata==NULL){
-		if(jqnod) free(jqnod);
+	if(ndata==NULL) {
+		free(jqnod);
 		return NULL;
 	}
-        void* check=memcpy(ndata,data,size);
-        if(check==NULL) return NULL;
-        
+	void* check=memcpy(ndata,data,size);
+        if(check==NULL){
+		free(ndata);
+		free(jqnod);
+		return NULL;
+	}
+	
         jqnod->data=ndata;
 	jqnod->size=size;
         jqnod->next=NULL;
-        return jqnod;
+	return jqnod;
 }
 
 
 Jque* jque_init(){
         Jque* jq=malloc(sizeof(Jque));
         if(jq==NULL) return NULL;
-        jq->front=jq->rear=NULL;
+        
+	jq->front=jq->rear=NULL;
         jq->len=0;
 
         return jq;
@@ -57,6 +62,8 @@ void jque_empty(Jque* jq){
                 free(current);
                 current=next;
         }
+
+	jq->rear=jq->front=NULL;
 	jq->len=0;
 }
 
@@ -73,42 +80,39 @@ void jque_push(Jque* jq,void* data,int size){
         if(jq==NULL||data==NULL) return;
         
         Jquenod* jqnod=__jq_create_node(data,size);
-        if(jqnod==NULL) return;
-       
-        //如果头尾元素为空的话
-        //则需要将新节点赋值给头尾元素
-        if(jq->rear==NULL&&jq->front==NULL) {
-                jq->front=jq->rear=jqnod;
-                jq->len++;
-                return;
-        }
-        
-        Jquenod* cur_rear=jq->rear;
-        cur_rear->next=jqnod;
-        jq->rear=jqnod;
-        jq->len++;
+	if(jqnod==NULL) return;
+
+	if(jq->front==NULL&&jq->rear==NULL){
+		jq->front=jq->rear=jqnod;
+		jq->len++;
+		return;
+	}
+
+	if(jq->front==NULL||jq->rear==NULL){
+		printf("front or rear is null.\n");
+		return;
+	}
+	jq->rear->next=jqnod;
+	jq->rear=jq->rear->next;
+	jq->len++;
 }
 
 void* jque_pop(Jque* jq){
         if(jq==NULL||jq->len==0) return NULL;
         
-        Jquenod* cur_front=jq->front;
-        Jquenod* next=cur_front->next;
-        
-	void* data=malloc(cur_front->size);
-	if(data==NULL) return NULL;
-	memcpy(data,cur_front->data,cur_front->size);
+        Jquenod* cur=jq->front;
+	if(cur==NULL) return NULL;
 	
-        //弹出首个元素
+	//弹出首个元素
         //把第二个元素置为首个元素
         //更新头节点
-        jq->front=next;
         //当队列只有一个元素时
-        if(jq->len==1) jq->front=jq->rear;
+        jq->front=cur->next;
+	if(jq->rear==cur) jq->rear=jq->front;
         
 	//释放内存
-	free(cur_front->data);
-	free(cur_front);
+	void* data=cur->data;
+	free(cur);
         jq->len--;
         return data;
 }

@@ -12,7 +12,11 @@ static JNode* __jst_create_snode(void* data,int size){
 		return NULL;
 	}
 	void* check=memcpy(jdata,data,size);
-        if(check==NULL) return NULL;
+        if(check==NULL){
+		free(jnode);
+		free(jdata);
+		return NULL;
+	}
         
 	jnode->data=jdata;
         jnode->size=size;
@@ -91,15 +95,10 @@ void* jstack_popobj(JStack* jst){
         JNode* current=jst->top;
         if(current==NULL) return NULL;
 
-        JNode* next=current->next;
-        void* data=malloc(current->size);
-	if(data==NULL) return NULL;
-	memcpy(data,current->data,current->size);
-	
-	free(current->data);
-        free(current);
+	jst->top=current->next;
         
-	jst->top=next;
+	void* data=current->data;
+        free(current);
         jst->len--;
 
         return data;
@@ -121,17 +120,14 @@ void jstack_push(JStack* jst,void* data,int size){
         JNode* new_node=__jst_create_snode(data, size);
         if(new_node==NULL) return;
 
-        JNode* current=jst->top;
-        new_node->next=current;
+        new_node->next=jst->top;
         jst->top=new_node;
         jst->len++;
 }
 
 void jstack_putnode(JStack* jst,JNode* node){
-        if(jst==NULL||node==NULL) return;
-
-        JNode* current=jst->top; 
-        node->next=current;
+        if(jst==NULL||node==NULL) return; 
+        node->next=jst->top;
         jst->top=node;
         jst->len++;
 }
@@ -149,7 +145,7 @@ void jstack_reverse(JStack* jst){
         while(current){
                 next=current->next;
                 
-                nnew=current;
+		nnew=current;
                 nnew->next=nhead;
                 nhead=nnew;
 
