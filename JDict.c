@@ -204,7 +204,6 @@ dnode** jdict_entries(JDict* dict,int* entries_len){
 	if(entries_len==NULL) return NULL;
 
 	int len=0;
-	//DICT_CYCLE(dict,memcpy(entries[len],cur,sizeof(dnode));cur=cur->next;len++;);
 	LOOP(i,0,dict->capacity){
 		if(dict->table[i]){
 			dnode* cur=dict->table[i]->next;

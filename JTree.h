@@ -6,21 +6,22 @@ struct _TreeNode{
 	struct _TreeNode* left;
 	struct _TreeNode* right;
 	void* val;
+	int size;
 };
 
 typedef struct _TreeNode JTreen;
 
-/*struct _Tree{
-	struct _TreeNode* left;
-	struct _TreeNode* right;
-	int height;
-	void* val;
-}
+struct _Tree{
+	JTreen root;
+	int len;
+};
 
-typedef struct _Tree JTree;*/
+typedef struct _Tree JTree;
 
 static JTreen* _treen_create(void* val,int size);
 JTreen* jtree_init(void* val,int size);
+
+JTreen* jtree_find(JTree* tree,void* val);
 
 void jtree_add(void* val,int size);
 void jtree_remove(void* val);

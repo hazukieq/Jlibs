@@ -17,6 +17,7 @@ static JTreen* _treen_create(void* val,int size){
 	}
 
 	memcpy(node->val,val,size);
+	node->size=size;
 	node->left=NULL;
 	node->right=NULL;
 	return node;
@@ -63,7 +64,7 @@ void jtree_release(JTreen* node){
 	free(node);
 }
 
-void tree_bfs(JTreen* node){
+void jtree_bfs(JTreen* node){
 	Jque* jq=jque_init();
 	jque_push(jq,node,sizeof(JTreen));
 
@@ -87,7 +88,7 @@ int main(void){
 	node->left=left; 
 	node->right=right;
 
-	tree_bfs(node);
+	jtree_bfs(node);
 	jtree_release(node);
 	
 	return 0;
