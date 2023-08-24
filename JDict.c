@@ -1,7 +1,9 @@
 #include "JDict.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
+#include "JSha256.h"
+#include <stdlib.h>
 
 #define CH(x) ((char*)(x))
 #define T(x,type) ((type)(x))

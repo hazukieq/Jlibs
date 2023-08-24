@@ -16,7 +16,7 @@ static int int_sqrt(int m,int n);
 static JStr operateflt(const char* jc1,char op,const char* jc2);
 static double flt_sqrt(double m,double n);
 
-static List* splitExprs(const JStr exprs);
+static JList* splitExprs(const JStr exprs);
 static JStr calcExprs(const JStr exprs,int type);
 
 JStr jrpn_calcFlt(const JStr exprs);

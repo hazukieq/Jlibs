@@ -1,31 +1,21 @@
 #include "JString.h"
 #include <stdio.h>
-#include <sys/types.h>
-/**---内部宏---*/
-//输出红色警告信息
-//int转char
-#define FALSE 0
-#define TRUE 1
-
-#define Err(msg,var,format) printf("\033[0;31mError on File(%s)_Func<%s>(Line %d)=> " "variable<" #var ">=\"%" #format "\" %s\033[0m\n",__FILE__,__FUNCTION__,__LINE__,var,msg)
-
-#define loge(fmt,args...) printf("Loge on File(%s)_Func<%s>(Line %d)=> \033[0;31m" fmt "\033[0m\n",__FILE__,__func__,__LINE__,##args)
-
-#define logc(fmt,args...) printf("Logc on File(%s)_Func<%s>(Line %d)=> \033[0;35m" fmt "\033[0m\n",__FILE__,__func__,__LINE__,##args)
-
-#define logi(var,format,fmt,args...) printf("Logi on File(%s)_Func<%s>(Line %d)=> \033[0;32mvariable<" #var ">=\"%" #format "\"" fmt "\033[0m\n",__FILE__,__func__,__LINE__,var,##args)
+#include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
+#include "common.h"
 
 
-//计算类型内存大小
-#define _CH(s) sizeof(char)*(s)
-#define _IN(s) sizeof(int)*(s)
-
-//获取转换指针
-#define vtr(type,var,val) type* var=(type*) val
-
-/* 根据结构成员指针地址找到结构体首位地址
- * 因为结构体的内存是动态分配的
- * 所以可以通过结构体成员buf减去结构体占用的空间大小来得到结构体的首位地址，即结构体指针
+/* 此方法仅适用于结构体最后一位是柔性数组的前提下
+ * 根据结构成员指针地址找到结构体首位地址
+ * 因为结构体中的buf是柔性数组,所以其并不占用结构体空间
+ * jstring->buf首地址刚好在结构体的尾部
+ * 故寻找结构体的首位地址只需要将buf首地址减去结构体大小即可
+ * name: 结构成员指针
+ *
+ * #define jptr(value)
+ * ((JString*)(((unsigned long)&(value))-(unsigned long)(&((JString*)0)->buf)))
+ *
  */
 #define jptr(name) ((JString*)(name-(sizeof(JString)))) 
 #define vjptr(name,val) JString* val=jptr(name)
@@ -265,7 +255,7 @@ struct __Utfobj{
 };
 
 
-static void __addUtfobj(List* list,const JStr c,int clen,int index,int bits){
+static void __addUtfobj(JList* list,const JStr c,int clen,int index,int bits){
                         JStr ne=NULL;
                         int endIndex=index+bits;
                         if(endIndex>clen){
@@ -283,22 +273,22 @@ static void __addUtfobj(List* list,const JStr c,int clen,int index,int bits){
                         __str_memcpy(_u->acmps,bits,ne,bits);
                         __str_addEndMark(_u->acmps,bits);
                 
-                        list_add(list,_u,sizeof(struct __Utfobj)+_CH(bits+1));
+                        jlist_add(list,_u,sizeof(struct __Utfobj)+_CH(bits+1));
                         free(_u);
                         jstr_free(ne);
                         ne=NULL;
 }
 
-static List* __utf_getUtfobjs(JStr jc,int jclen){
+static JList* __utf_getUtfobjs(JStr jc,int jclen){
         /* cnt   所有字节的总长度
          * cnt+1 一位数字节,cnt+2 两位数字节,cnt+3 三位数字节
          * cnt+4 四位数字节,cnt+5 五位数字节,cnt+6 六位数字节
          */
         #define _BIT(var,val) var>val
         #define BITZ(v) _BIT(jstr,v)
-        #define AOBJ(inum,bits) __addUtfobj(list,jc,jclen,inum,bits)
+        #define AOBJ(inum,bits) __addUtfobj(jlist,jc,jclen,inum,bits)
                 
-        List* list=list_init(LSTRUCT);
+        JList* jlist=jlist_init(LSTRUCT);
         for(int i=0;i<jclen;i++){
                 //convert unsigned binary data.
                 unsigned char jstr=jc[i];
@@ -309,7 +299,7 @@ static List* __utf_getUtfobjs(JStr jc,int jclen){
                 else if(BITZ(0xC0)) AOBJ(i,2);
                 else if((jstr&0x80)==0) AOBJ(i,1);
         }
-        return list;
+        return jlist;
 }
 
 /**----以下方法操作失败均返回NULL代码！----**/
@@ -355,7 +345,7 @@ static JStr __utf_subs(JStr jc,int jclen,int start,int end){
          * g is gbk,others is unsupported.
          */
         if(start==0&&end==0) return jstr_newempty();
-        List* utfs=__utf_getUtfobjs(jc,jclen);
+        JList* utfs=__utf_getUtfobjs(jc,jclen);
         int carrs_len=utfs->len;
 
         if(start>carrs_len||end>carrs_len) { 
@@ -385,7 +375,7 @@ static JStr __utf_subs(JStr jc,int jclen,int start,int end){
         }
 
         int size=0;
-        list_for(utfs,current){        
+        jlist_for(utfs,current){        
                 struct __Utfobj* obj=(struct __Utfobj*) current->obj;
                 if(obj==NULL) goto cleanup;
                 if(obj->utfindex>=start&&obj->utfindex<end)
@@ -398,17 +388,17 @@ static JStr __utf_subs(JStr jc,int jclen,int start,int end){
         }
        
         //实际开始位置索引并不是utf索引!!!
-        int actualStart=((struct __Utfobj*)list_get(utfs,start))->start;
+        int actualStart=((struct __Utfobj*)jlist_get(utfs,start))->start;
         
         JStr new_jc=jstr_newlen("",size);
         __str_memcpy(new_jc,_CH(size),jc+actualStart,_CH(size));
         __str_addEndMark(new_jc,size);
         
-        list_release(utfs);
+        jlist_release(utfs);
         return new_jc;
 
 cleanup:
-        if(utfs) list_release(utfs);
+        if(utfs) jlist_release(utfs);
         return NULL;
 }
 
@@ -436,12 +426,12 @@ static JStr __utf_reverse(JStr jc,int jclen,int start,int end){
         //零个或一个字符时,不用翻转
         if(hr->len==0||hr->len==1) return neo_;
 
-        List* utfs=__utf_getUtfobjs(neo_,hr->len);
+        JList* utfs=__utf_getUtfobjs(neo_,hr->len);
 
         int hrlen=0;
         int utfslen=utfs->len;
         while(utfslen--){
-                struct __Utfobj* utf=(struct __Utfobj*)list_get(utfs,utfslen);
+                struct __Utfobj* utf=(struct __Utfobj*)jlist_get(utfs,utfslen);
                 if(utf==NULL) goto clearup;
                 for(int i=0;i<=utf->len;i++){
                         char ch=utf->acmps[i];
@@ -449,10 +439,10 @@ static JStr __utf_reverse(JStr jc,int jclen,int start,int end){
                 }
                 hrlen+=utf->len;
         }
-        list_release(utfs);
+        jlist_release(utfs);
         return neo_;
 clearup:
-        list_release(utfs);
+        jlist_release(utfs);
         return NULL;
 }
 
@@ -694,8 +684,8 @@ static JStr __str_insert(JStr jc,const char* insertJc,int startIndex){
         int insertJclen=strlen(insertJc);
 	
 	//计算出字符串对应的UTF字符长度
-        List* alls=__utf_getUtfobjs(jc,jptr(jc)->len);
-        struct __Utfobj* startIndexObj=list_get(alls,startIndex);//获取插入点处的UTF字符
+        JList* alls=__utf_getUtfobjs(jc,jptr(jc)->len);
+        struct __Utfobj* startIndexObj=jlist_get(alls,startIndex);//获取插入点处的UTF字符
         
 	//总长度(原长度+插入长度)
         int total=jclen+insertJclen;
@@ -716,7 +706,7 @@ static JStr __str_insert(JStr jc,const char* insertJc,int startIndex){
                 new_jc[total-i]=tmp;
         }
         memcpy(new_jc+startIndexObj->end,insertJc,insertJclen);
-	list_release(alls);
+	jlist_release(alls);
 	return new_jc;
 }
 
@@ -1222,12 +1212,12 @@ char jstr_charAt(const JStr jc,int index){
         
         if(index>jclen) return '0';
         //检测是否包含ANSI之外的字符，如果有则截取失败！
-        List* utfs=__utf_getUtfobjs(jc,jclen);
+        JList* utfs=__utf_getUtfobjs(jc,jclen);
         int isUtf=1;
-        list_for(utfs,cur){
+        jlist_for(utfs,cur){
                 struct __Utfobj* obj=(struct __Utfobj*)cur->obj;
                 if(obj==NULL){
-                        list_release(utfs);
+                        jlist_release(utfs);
                         return 0;
                 }
                 if(obj->len>1){
@@ -1242,7 +1232,7 @@ char jstr_charAt(const JStr jc,int index){
         }
 
         if(index<0) index=jclen+index;
-        list_release(utfs);
+        jlist_release(utfs);
         return jc[index];
 }
 

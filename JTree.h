@@ -13,7 +13,7 @@ typedef struct _TreeNode JTreen;
 
 struct _Tree{
 	JTreen root;
-	int len;
+	//int len;
 };
 
 typedef struct _Tree JTree;

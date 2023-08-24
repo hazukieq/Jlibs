@@ -1,10 +1,6 @@
 #ifndef __JSTRING_H_
 #define __JSTRING_H_
 #include "JList.h"
-#include <stdio.h>
-#include <malloc.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define __ARRAY_EXPAND(type,...) (type[]){__VA_ARGS__},sizeof((type[]){__VA_ARGS__})/sizeof(type)
 #define __regexs(...) (const char*[]){__VA_ARGS__},sizeof((const char*[]){__VA_ARGS__})/sizeof(char*)
@@ -70,9 +66,9 @@ static JStr __str_overwriteMakeMem(JStr jc,int applySize);
 //根据算法来分配字符串内存，为拼接拓展等预留空间，其申请空间大小记录在`free`属性中
 static void* __str_memcpy(void* dest,int dest_size,const void* src,int src_size);
 
-static void __utfobj_init(List* list,char c[],int index, int clen);
-static void __addUtfobj(List* list,char c[],int clen,int index,int bits);
-static List* __utf_getUtfobjs(JStr jc,int jclen);
+static void __utfobj_init(JList* list,char c[],int index, int clen);
+static void __addUtfobj(JList* list,char c[],int clen,int index,int bits);
+static JList* __utf_getUtfobjs(JStr jc,int jclen);
 
 static JStr __ansi_subs(JStr jc,int jclen,int start,int end);
 static JStr __utf_subs(JStr jc,int jclen,int start,int end);

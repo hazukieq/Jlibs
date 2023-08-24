@@ -1,4 +1,8 @@
 #include "JStack.h"
+#include <stdio.h>
+#include <malloc.h>
+#include <memory.h>
+
 
 static JNode* __jst_create_snode(void* data,int size){
         if(data==NULL||size==0) return NULL;

@@ -1,9 +1,6 @@
 #ifndef __JSTACK_H_
 #define __JSTACK_H_
 
-#include <stdio.h>
-#include <malloc.h>
-#include <memory.h>
 
 //请注意 obj 是一个节点，不是实际数据！
 #define jstack_for(jstack,obj) \

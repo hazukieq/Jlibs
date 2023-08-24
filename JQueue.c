@@ -1,4 +1,8 @@
 #include "JQueue.h"
+#include <stdio.h>
+#include <malloc.h>
+#include <memory.h>
+
 
 static Jquenod* __jq_create_node(void* data,int size){
 	if(data==NULL||size==0) return NULL;

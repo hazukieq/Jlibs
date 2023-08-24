@@ -1,9 +1,5 @@
 #ifndef _JDICT_H__
 #define _JDICT_H__
-#include <stdio.h>
-#include <string.h>
-#include <malloc.h>
-#include "JSha256.h"
 
 //dict 包含table    ->哈希字典
 //table 包含dhead   ->数组

@@ -2,12 +2,47 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <memory.h>
+#include "JDict.h"
 #include "JQueue.h"
+#include "JSha256.h"
+
+#define _S(arg) sizeof(arg)
+
+struct Any{
+	void* val;
+	int size;
+};
+typedef struct Any Any;
+
+static unsigned int _has_fn(void* val,int size){
+	unsigned char* hash;
+	jsha_hash(val,size,&hash);
+	
+	unsigned int hash_int=*((unsigned int*)hash);
+	printf("hash_int:%d\n",hash_int);
+	
+	if(hash) free(hash);
+	
+	return hash_int;
+}
+
+static int _compare(const void* a,const void* b){
+	return (*(int*)a-*(int*)b);
+}
+
+static void _sortArr(Any arrs[],int len,int hashes[],int hlen){
+	if(hlen!=len) return;
+	for(int i=0;i<len;i++)
+		hashes[i]=(int)_has_fn((arrs[i]).val,(arrs[i]).size);
+
+	for(int j=0;j<hlen;j++)
+		printf("val: %d\n",hashes[j]);
+}
 
 static JTreen* _treen_create(void* val,int size){
 	if(val==NULL||size==0) return NULL;
 
-	JTreen* node=malloc(sizeof(JTreen));
+	JTreen* node=malloc(_S(JTreen));
 	if(node==NULL) return NULL;
 
 	node->val=malloc(size);
@@ -66,14 +101,15 @@ void jtree_release(JTreen* node){
 
 void jtree_bfs(JTreen* node){
 	Jque* jq=jque_init();
-	jque_push(jq,node,sizeof(JTreen));
+	jque_push(jq,node,_S(JTreen));
 
 	while(jq->len){
 		JTreen* jcur=(JTreen*)jque_pop(jq);
-		printf("nptr:%p,ptr: %p,%s\n",node,jcur,(char*)jcur->val);
-	
-		if(jcur->left) jque_push(jq,jcur->left,sizeof(JTreen));
-		if(jcur->right) jque_push(jq,jcur->right,sizeof(JTreen));
+		printf("jcur: %s\n",(char*)jcur->val);
+		if(jcur->left)
+			jque_push(jq,jcur->left,_S(JTreen));
+		if(jcur->right) 
+			jque_push(jq,jcur->right,_S(JTreen));
 		jque_pop_free(jcur);
 	}
 	jque_release(jq);
@@ -90,6 +126,15 @@ int main(void){
 
 	jtree_bfs(node);
 	jtree_release(node);
+	
+	unsigned int s=_has_fn("welcome",8);
+	printf("%d %% %d=%d\n",s,100,s%100);
+	
+	Any anys[3]={
+		{"hello",6},{"world",6},{"welcome",8}
+	};
+	int any_hashes[3];
+	_sortArr(anys,3,any_hashes,3);
 	
 	return 0;
 }

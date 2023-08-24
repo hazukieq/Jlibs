@@ -1,4 +1,5 @@
 #include "JRpn.h"
+#include <string.h>
 
 static char getOp_Priority(char c1,char c2){
         char result;
@@ -164,8 +165,8 @@ static JStr operateflt(const char* jc1,char op,const char* jc2){
 
 
 //分割字符串中的数字字符
-static List* splitExprs(const JStr exprs){
-        List* l=list_init(LCHAR);
+static JList* splitExprs(const JStr exprs){
+        JList* l=jlist_init(LCHAR);
         //printf("exprs->%s,lens:%d\n",exprs,jstr_len(exprs));
         
         int lastEnd=0,count=0,start=0,len=0;
@@ -187,12 +188,12 @@ static List* splitExprs(const JStr exprs){
                         if(lastEnd!=end){
                                 subs=jstr_subsAnsi(exprs,lastEnd,end);
                                 //printf("subs_str->%s\n",subs);
-                                list_add(l,subs,sizeof(char)*(jstr_len(subs)+1));
+                                jlist_add(l,subs,sizeof(char)*(jstr_len(subs)+1));
                         }
                         char n[2];
                         *n=exprs[len];
                         *(n+1)='\0';
-                        list_add(l,n,2);
+                        jlist_add(l,n,2);
 
 
                         jstr_free(subs);
@@ -210,8 +211,8 @@ static List* splitExprs(const JStr exprs){
         //而len是从0开始计算的,lastEnd是从1开始计算的
         if(lastEnd<len+1){
                 subs=jstr_subsAnsi(exprs,lastEnd,-1);
-                list_add(l,subs,sizeof(char)*(jstr_len(subs)+1));
-                list_add(l,"#",2);
+                jlist_add(l,subs,sizeof(char)*(jstr_len(subs)+1));
+                jlist_add(l,"#",2);
         }
         
         if(subs!=NULL) jstr_free(subs);
@@ -220,7 +221,7 @@ static List* splitExprs(const JStr exprs){
 
 static char* calcExprs(const JStr jcs,int type){
         if(jcs==NULL) return NULL;
-        List* exprs=splitExprs(jcs);
+        JList* exprs=splitExprs(jcs);
         //数字存储
         JStack* OPND=jstack_init();
         //运算符存储
@@ -237,7 +238,7 @@ static char* calcExprs(const JStr jcs,int type){
         char* c;
         char* x;
         x=(char*)jstack_top(OPTR);
-        c=(char*)list_get(exprs,exprslen++);
+        c=(char*)jlist_get(exprs,exprslen++);
 
         while(exprslen<eslen+1&&(c[0]!='#'||x[0]!='#')){
                 if(strlen(c)==1&&isOp(c[0])){
@@ -256,12 +257,12 @@ static char* calcExprs(const JStr jcs,int type){
                                 case '<':
                                         printf("\033[0;31mpush_op<%s>\033[0m\n",c);
                                         jstack_push(OPTR,c,2);
-                                        c=(char*)list_get(exprs,exprslen++);
+                                        c=(char*)jlist_get(exprs,exprslen++);
                                         break;
                                 case '=':
                                         printf("\033[0;32mpop_op<%s> with c<%s>\033[0m\n",(char*)jstack_top(OPTR),c);
                                         jstack_pop(OPTR);
-                                        c=(char*)list_get(exprs,exprslen++);
+                                        c=(char*)jlist_get(exprs,exprslen++);
                                         break;
                                 case '>':
                                         printf("operated_op<%s> has poped\n",(char*)jstack_top(OPTR));
@@ -290,7 +291,7 @@ static char* calcExprs(const JStr jcs,int type){
                 else if(jstr_isnumlen(c,strlen(c))){
                         jstack_push(OPND,c,sizeof(c));
                         printf("\033[0;35mpush_num:%s\033[0m\n",c);
-                        c=(char*)list_get(exprs,exprslen++);
+                        c=(char*)jlist_get(exprs,exprslen++);
                         //printf("next_num:%s\n",c);
                 }else{
                         printf("Illegal exprs<%s>\n",c);
@@ -307,12 +308,12 @@ static char* calcExprs(const JStr jcs,int type){
                 x="error";
         }
 
-        list_release(exprs);
+        jlist_release(exprs);
         jstack_release(OPTR);
         jstack_release(OPND);
         return x;
 error:
-        list_release(exprs);
+        jlist_release(exprs);
         jstack_release(OPND);
         jstack_release(OPTR);
         return "errors.";
@@ -339,14 +340,14 @@ void jrpn_test(){
         printf("\n\nfinal_result of %s: %s\n",s,res_flt);
         printf("\nfinal_result of (1/3)^3+1/2*15+(200-103)mod 13: %s\n\n",res_int);
 
-        List* l=splitExprs(expression);
+        JList* l=splitExprs(expression);
         printf("切割表达式<%s>：\n",expression);
-        list_for(l,cur){
+        jlist_for(l,cur){
                 char* chars=cur->obj;
                 printf("chars:%s\n",chars);
         }
         
-        list_release(l);
+        jlist_release(l);
         jstr_free(expression);
 }
 

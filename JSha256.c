@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "JSha256.h"
+#include<stdint.h>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define copy_uint32(p, val) *((uint32_t *)p) = __builtin_bswap32((val))//gcc 内建函数__builtin_bswap32，
@@ -61,7 +62,7 @@ static const uint32_t k[64] = {
  * - 完成64次加密迭代
  * 4.得到256比特的加密数据 
  */
-static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
+static void sha256(const unsigned char *data,int len, unsigned char *out) {
 	uint32_t h0 = 0x6a09e667;
         uint32_t h1 = 0xbb67ae85;
         uint32_t h2 = 0x3c6ef372;
@@ -193,7 +194,7 @@ static void sha256(const unsigned char *data, size_t len, unsigned char *out) {
 }
 
 //需要手动释放内存！！！
-void jsha_hash(const char* data,size_t len, unsigned char** outptr_ptr){
+void jsha_hash(const char* data,int len, unsigned char** outptr_ptr){
 	if(data==NULL) {
 		printf("data cannot be NULL\n");
 		return;
@@ -213,7 +214,7 @@ void jsha_hash(const char* data,size_t len, unsigned char** outptr_ptr){
 	}
 }
 
-void jsha_getobj(const char *data, size_t len, shacontext **contextptr_ptr){
+void jsha_getobj(const char *data,int len, shacontext **contextptr_ptr){
 	if(data==NULL) {
 		printf("data cannot be NULL\n");
 		return;

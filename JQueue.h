@@ -1,9 +1,5 @@
 #ifndef __JQUEUE_H__
 #define __JQUEUE_H__
-#include <stdio.h>
-#include <malloc.h>
-#include <memory.h>
-
 
 #define jque_for(jq,obj) \
         Jquenod* obj=NULL;\
