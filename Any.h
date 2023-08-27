@@ -1,5 +1,6 @@
 #ifndef __ANY_H__
 #define __ANY_H__
+
 struct _Any{
 	int capacity; //申请内存容量
 	int size;//当前储存长度
@@ -9,31 +10,38 @@ struct _Any{
 
 typedef struct _Any Any;
 
-static Any* _new();
-static void _del(Any* any);
-static void _empty(Any* any);
+static Any* _new(void* val,int size);
 
 //初始化
-void* anyOf(void* val,int size);
+Any* anyOf(void* val,int size);
+#define anyStr(val) (Any){strlen((char*)(val))+24,strlen((char*)(val))+1,0x01,(void*)(val)}
+#define anyI(val,size) (Any){size+23,size,0x01,(void*)val}
 
+//更新Any值
+void anySet(Any* any,void* val,int size);
+
+Any* anyCopy(Any* any);
 //清空
 void anyClear(Any* any);
 
 //释放内存
 void anyFree(Any* any);
 
-//得到值
-void* any(Any* any);
+void* anyVal(Any* any);
+int anySize(Any* any);
+
+
+//结构体打印
+#define anyLog(any,val_type,val_fmt) \
+	if(any!=NULL||any->check==0x01){\
+		printf("anyLog:\033[0;32m val<%" #val_fmt ">,size<%d>\033[0m\n",(val_type)any->val,any->size);\
+	}
 
 //得到结构体指针
 #define anyPtr(any_val) ptr(any_val,Any,val)
 
-#define assertAny(any_val,ret) \
-if(anyPtr(any_val)->check!=0x01){\
-	loge("this object is not initialized properly...")\
-	return ret;\
-}
-
-#define anyAuto(...) anyFrees((Any*[]){__VA_ARGS__},sizeof((Any*[]){__VA_ARGS__})/sizeof(Any))
+#define anyAuto(...) anyFrees((Any*[]){__VA_ARGS__},sizeof((Any*[]){__VA_ARGS__})/sizeof(Any*))
 void anyFrees(Any* anys[],int len);
+
+void any_test();
 #endif

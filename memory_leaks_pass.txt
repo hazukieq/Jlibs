@@ -4,3 +4,4 @@
 - [x] JSha256
 - [x] JQueue
 - [x] JStack
+- [x] Any

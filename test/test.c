@@ -5,6 +5,7 @@
 #include "../JStack.h"
 #include "../JString.h"
 #include "../JRpn.h"
+#include "../JTree.h"
 int main(void){
 	jdict_test();
 	jlist_test();
@@ -13,4 +14,5 @@ int main(void){
 	jstack_test();
 	jstr_test();
 	jrpn_test();
+	jtree_test();
 }
