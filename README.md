@@ -9,3 +9,4 @@
 - JString 字符串
 - JSha256 加密算法
 - JDict 哈希字典
+- JTree 二叉搜索树
