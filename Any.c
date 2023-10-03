@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
-#include <string.h>
 #include "common.h"
 
 #define INITED 0x01

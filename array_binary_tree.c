@@ -1,67 +1,85 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <memory.h>
+#include "JHeap.h"
 
-struct binaryTree{
-	int size;
-	char* arr[];
-};
-
-typedef struct binaryTree binaryTree;
-
-binaryTree* btree_new(int size){
-	binaryTree* btree=malloc(sizeof(binaryTree)+size*sizeof(char*));
-	if(btree==NULL) return NULL;
-	btree->size=size;
-	return btree;
-}
-
-int btree_size(binaryTree *btree){
-	if(btree==NULL) return 0;
-	return btree->size;
-}
-
-void btree_set(binaryTree* btree,int index,char* val){
-	if(btree==NULL) return;
+static void jheap_set(JHeap* jheap,int index,void* val,int size){
+	if(jheap==NULL) return;
 	if(val==NULL) return;
 	
-	btree->arr[index]=malloc(strlen(val)+1);
-	if(btree->arr[index]==NULL) return;
-	memcpy(btree->arr[index],
-			val,
-			strlen(val)+1);
+	Any* any=anyOf(val,size);
+	//anyLog(any,char*,s);
+	
+	if(any==NULL) return;
+	jheap->arr[index]=any;
 }
 
-void* btree_get(binaryTree *btree,int index){
-	if(btree==NULL) return NULL;
-	if(index<0||index>=btree->size) return NULL;
-	return btree->arr[index];
+static Any* jheap_get(JHeap* jheap,int index){
+	if(jheap==NULL||index<0||index>=jheap->size) return NULL;
+	return jheap->arr[index];
 }
 
-static int _btree_left(int i){
+static int _jheap_left(int i){
 	return 2*i+1;
 }
 
-static int _btree_right(int i){
+static int _jheap_right(int i){
 	return 2*i+2;
 }
 
-static int _btree_parent(int i){
+static int _jheap_parent(int i){
 	return (i-1)/2;
 }
+
+
+
+
+JHeap* jheap_init(int size){
+	JHeap* jheap=malloc(sizeof(JHeap)+size*sizeof(Any*));
+	if(jheap==NULL) return NULL;
+	jheap->size=size;
+	return jheap;
+}
+
+int jheap_size(JHeap* jheap){
+	if(jheap==NULL) return 0;
+	return jheap->size;
+}
+
+int jheap_isNone(JHeap *jh){
+	if(jh==NULL||jh->size==0) return 0;
+	return 1;
+}
+
+Any* jheap_pop(JHeap* jh){
+	if(jh==NULL||jh->size==0) return NULL;
+	return NULL;
+}
+
+void jheap_push(JHeap* jh,void* val,int size){
+	if(jh==NULL||jh->size==0||val==NULL||size==0) return;
+
+}
+
+Any* jheap_peak(JHeap* jh){
+	if(jh==NULL||jh->size==0) return NULL;
+	return jh->arr[0];
+}
+
 
 /*
  * 记得手动释放内存
  */
-char** btree_levelorder(binaryTree *btree){
-	if(btree==NULL) return NULL;
+Any** jheap_levelorder(JHeap* jheap){
+	if(jheap==NULL) return NULL;
 
-	char** res=malloc(btree->size*sizeof(char*));
+	Any** res=malloc(jheap->size*sizeof(Any*));
 	if(res==NULL) return NULL;
 
-	for(int i=0;i<btree->size;i++){
-		if(btree->arr[i]!=NULL) 
-			res[i]=btree->arr[i];
+	for(int i=0;i<jheap->size;i++){
+		if(jheap->arr[i]!=NULL){
+			res[i]=jheap->arr[i];
+		}
 	}
 	return res;
 }
@@ -69,86 +87,88 @@ char** btree_levelorder(binaryTree *btree){
 #define PRE_ORDER (1<<0)
 #define IN_ORDER (1<<1)
 #define POST_ORDER (1<<2)
-void btree_dfs(binaryTree* btree,int i,char order,char** res){
-	if(btree==NULL||res==NULL) return;
-	if(btree_get(btree,i)==NULL) return;
+void jheap_dfs(JHeap* jheap,int i,char order,Any** res){
+	if(jheap==NULL||res==NULL) return;
+	if(jheap_get(jheap,i)==NULL) return;
 
 	static int count=0;
 	
 	if(order==PRE_ORDER) 
-		res[count++]=btree_get(btree,i);	
-	btree_dfs(btree,_btree_left(i),order,res);
+		res[count++]=jheap_get(jheap,i);	
+	jheap_dfs(jheap,_jheap_left(i),order,res);
 
 	if(order==IN_ORDER) 
-		res[count++]=btree_get(btree,i);
-	btree_dfs(btree,_btree_right(i),order,res);
+		res[count++]=jheap_get(jheap,i);
+	jheap_dfs(jheap,_jheap_right(i),order,res);
 
 	if(order==POST_ORDER)
-		res[count++]=btree_get(btree,i);
+		res[count++]=jheap_get(jheap,i);
 
-	if(count==btree->size) count=0;
+	if(count==jheap->size) count=0;
 }
 
 /*
  * 记得手动释放内存
  */
-char** btree_preorder(binaryTree* btree){
-	char** res=malloc(btree->size*sizeof(char*));
+Any** jheap_preorder(JHeap* jheap){
+	Any** res=malloc(jheap->size*sizeof(Any*));
 	if(res==NULL) return NULL;
 	
-	btree_dfs(btree,0,PRE_ORDER,res);
+	jheap_dfs(jheap,0,PRE_ORDER,res);
 	return res;
 }
 
 /*
  * 记得手动释放内存
  */
-char** btree_inorder(binaryTree* btree){
-	char** res=malloc(btree->size*sizeof(char*));
+Any** jheap_inorder(JHeap* jheap){
+	Any** res=malloc(jheap->size*sizeof(Any*));
 	if(res==NULL) return NULL;
 	
-	btree_dfs(btree,0,IN_ORDER,res);
+	jheap_dfs(jheap,0,IN_ORDER,res);
 	return res;
 }
 
 /*
  * 记得手动释放内存
  */
-char** btree_postorder(binaryTree* btree){
-	char** res=malloc(btree->size*sizeof(char*));
+Any** jheap_postorder(JHeap* jheap){
+	Any** res=malloc(jheap->size*sizeof(char*));
 	if(res==NULL) return NULL;
 	
-	btree_dfs(btree,0,POST_ORDER,res);
+	jheap_dfs(jheap,0,POST_ORDER,res);
 	return res;
 }
 
-void btree_free(binaryTree* btree){
-	if(btree==NULL) return;
-	for(int i=0;i<btree->size;i++){
-		if(btree->arr[i]) 
-			free(btree->arr[i]);
+void jheap_release(JHeap* jheap){
+	if(jheap==NULL) return;
+	for(int i=0;i<jheap->size;i++){
+		if(jheap->arr[i]) 
+			anyFree(jheap->arr[i]);
 	}
-	free(btree);
+	free(jheap);
 }
 
 
 int main(void){
-	binaryTree* btree=btree_new(100);
+	JHeap* jheap=jheap_init(100);
 	for(int i=0;i<100;i++){
-		char s[5];
-		sprintf(s,"%d",i);
-		btree_set(btree,i,s);
+		char s[9];
+		sprintf(s,"%dhello",i);
+		Any any=anyStr(s);
+		printf("%s,%d\n",(char*)any.val,any.size);
+		jheap_set(jheap,i,any.val,any.size);
 	}
 
-	char** res=btree_levelorder(btree);
-	//char** res=btree_preorder(btree);
-	//char** res=btree_inorder(btree);
-	//char** res=btree_postorder(btree);
+	Any** res=jheap_levelorder(jheap);
+	//Any** res=jheap_preorder(jheap);
+	//Any** res=jheap_inorder(jheap);
+	//Any** res=jheap_postorder(jheap);
 	for(int j=0;j<100;j++)
-		printf("arr: %s\n",res[j]);
+		anyLog((res[j]),char*,s)
 	
 	free(res);
-	btree_free(btree);
+	jheap_release(jheap);
 	return 0;
 }
 

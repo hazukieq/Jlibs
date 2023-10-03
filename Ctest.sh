@@ -2,7 +2,7 @@
 if [[ $# -ge 1 ]];then
 	gcc -g -fsanitize=address "$@" -o "${1%%.c}.o"
 	clear
-	"./${1%%.c}.o" >out.log
+	"./${1%%.c}.o" >out.log 2>&1
 	result=$(cat out.log)
 	rm out.log
 	cur_time=$(date)

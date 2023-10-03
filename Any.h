@@ -1,5 +1,6 @@
 #ifndef __ANY_H__
 #define __ANY_H__
+#include <string.h>
 
 struct _Any{
 	int capacity; //申请内存容量
@@ -14,7 +15,11 @@ static Any* _new(void* val,int size);
 
 //初始化
 Any* anyOf(void* val,int size);
+//字符化->any
 #define anyStr(val) (Any){strlen((char*)(val))+24,strlen((char*)(val))+1,0x01,(void*)(val)}
+//字符化->any*
+#define anyTr(val) anyOf(val,(int)(strlen((char*)(val))+1))
+//任意化->any
 #define anyI(val,size) (Any){size+23,size,0x01,(void*)val}
 
 //更新Any值
