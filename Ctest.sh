@@ -8,7 +8,8 @@ if [[ $# -ge 1 ]];then
 	cur_time=$(date)
 	printf "\033[0;31m----NEW_CTEST of %s " "$1"
 	printf "%s----\033\n[0m" "$cur_time"
-	printf "\033[0;32mexec:\n%s\n\033[0m" "$result"	
+	printf "\033[0;32mexec:\n%s\n\033[0m" "$result"
+	rm "${1%%.c}.o"
 else
 	echo "need to specify one input file..."
 	exit
