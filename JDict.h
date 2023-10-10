@@ -51,9 +51,12 @@ void jdict_entries_free(dnode** entries,int entries_len);
 #define jdict_for(dict,cur) for(int i=0;i<dict->capacity;i++)\
 				      for(dnode* cur=dict->table[i]->next;cur;cur=cur->next)
 
-#define jdict_print(dict) for(int i=0;i<dict->capacity;i++)\
+#define jdict_print(dict) for(int i=0;i<dict->capacity;i++){\
 				      for(dnode* cur=dict->table[i]->next;cur;cur=cur->next)\
-					printf("\033[0;32m<%s,%s>\n\033[0m",(char*)cur->key,(char*)cur->val);
+					printf("\033[0;32m%s[%d]: <%s,%s>\n\033[0m",#dict,i,(char*)cur->key,(char*)cur->val);\
+			}
+
+#define jdict_info(dict) printf("\033[0;32m%s=>[loadfactor:%f,capacity:%d,size:%d]\033[0m\n",#dict,dict->lfactor_fn(dict->size,dict->capacity),dict->capacity,dict->size);
 
 
 //将字典中所有相同的值都修改为其他值

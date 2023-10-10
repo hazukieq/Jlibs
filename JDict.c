@@ -36,19 +36,14 @@ static void _extend(JDict** jdict){
 		return;
 	}
 	
-	printf("realloc memory successfully(%d)\n",new_mem);
+	//printf("realloc memory successfully(%d)\n",new_mem);
 	new_dict->hash_fn=__hash_fn;
 	new_dict->lfactor_fn=__loadfactor;
 	new_dict->capacity=new_mem;
 	new_dict->size=0;
-	new_dict->sizemask=new_mem-1;
-	
-	dhead** table=malloc(sizeof(dhead*)*new_mem);
-	if(table==NULL) return;
-	memcpy(new_dict->table,table,sizeof(dhead*)*new_mem);	
+	new_dict->sizemask=new_mem-1;	
 	for(int i=0;i<new_dict->capacity;i++) 
 		new_dict->table[i]=_dhead_init();
-	free(table);
 	
 	int len=0;
 	dnode** entries=jdict_entries(dict,&len);
@@ -126,12 +121,8 @@ JDict* jdict_init(){
 	dict->capacity=53;
 	dict->sizemask=dict->capacity-1;
 
-	dhead** table=malloc(sizeof(dhead*)*DEFAULT_SIZE);
-	if(table==NULL) return NULL;
-	memcpy(dict->table,table,sizeof(dhead*)*DEFAULT_SIZE);	
 	for(int i=0;i<dict->capacity;i++)
 		dict->table[i]=_dhead_init();
-	free(table);
 
 	return dict;
 }
@@ -142,7 +133,7 @@ void jdict_set(JDict** jdict,void* key,void* value){
 	double loadf=LOAD_FACTOR(*jdict);
 	double LOAD_FACTOR_MAX=0.75;
 	if(loadf>LOAD_FACTOR_MAX){
-		printf("\033[0;31mextended memory...loadf:%f\n\033[0m",loadf);
+		//printf("\033[0;31mextended memory...loadf:%f\n\033[0m",loadf);
 		_extend(jdict);
 	}
 	JDict* dict=*jdict;
@@ -263,29 +254,27 @@ void jdict_del(JDict* dict,void* key){
 			dnode* cur=dict->table[i]->next;
 			while(cur){
 				if(__hash_fn(cur->key)==__hash_fn(key)){
-					//printf("\033[0;32mfinded %s\n\033[0m",CH(cur->key));
-					if(cur->next) dict->table[i]->next=cur->next;
-					else dict->table[i]->next=NULL;
-
-					free(cur);
+					//printf("\033[0;31mmatched <%s,%s> with key<%s>\n\033[0m",
+					//		CH(cur->key),CH(cur->val),CH(key));
+					
+					if(cur->next){
+						memmove(cur,cur->next,sizeof(dnode));
+						free(cur->next);
+					}else{
+						free(cur);
+						dict->table[i]->next=NULL;
+					}
 					dict->size--;
 					return;
 				}
-				dnode* next=cur->next;
-				if(next&&__hash_fn(next->key)==__hash_fn(key)){
-					cur->next=next->next;
-					//printf("\033[0;31mfinded %s\n\033[0m",CH(next->key));
-					free(next);
-					dict->size--;
-					return;
-				}else cur=cur->next;
+				cur=cur->next;
 			}
 		}
 	}
 }
 
 void jdict_remove(JDict* dict,void* value){
-	int max=100;
+	int max=100; 
 	void** keys=malloc(max*sizeof(void*));
 	if(keys==NULL) return;
 	
@@ -360,12 +349,9 @@ void jdict_test(){
 	jdict_del(ldict, "hello");	
 	jdict_remove(ldict,"world");
 
-	char key[12];
-	for(int i=0;i<100;i++){
-		sprintf(key,"%di",i);
-		jdict_set(&ldict,key,"hello");
-	}
-	printf("loadfactor:%f,capacity->%d,size->%d\n",ldict->lfactor_fn(ldict->size,ldict->capacity),ldict->capacity,ldict->size);
+	jdict_info(ldict);
+	jdict_print(ldict);
+
 	jdict_release(ldict);
 
 
@@ -420,8 +406,8 @@ void jdict_test(){
 }
 
 
-/*int main(void){
+int main(void){
  	jdict_test();
 	return 0;
- }*/
+ }
 
